@@ -1,0 +1,37 @@
+{
+  "id": "ENV-002",
+  "title": "every envelope field the caller supplies reaches the wire unchanged",
+  "requirements": ["AMQP-ENV-001", "AMQP-ENV-002", "AMQP-ENV-007", "AMQP-ENV-008", "AMQP-ENV-010", "AMQP-ENV-011", "AMQP-ENV-012"],
+  "fixture": "fixtures/envelope-fixtures.json#populated",
+  "steps": [
+    {"broker": "declareQueue", "queue": "${ns}.rich"},
+    {"driver": "publish", "exchange": "", "routingKey": "${ns}.rich", "body": {"id": "o-2"},
+     "envelope": {
+       "id": "11111111-2222-3333-4444-555555555555",
+       "type": "order.placed",
+       "version": 3,
+       "correlationId": "corr-1",
+       "causationId": "cause-1",
+       "headers": {"x-tenant": "acme"}
+     }},
+    {"expect": "message", "queue": "${ns}.rich", "withinMs": 5000, "match": {
+      "body": {"id": "o-2"},
+      "properties": {
+        "message_id": "11111111-2222-3333-4444-555555555555",
+        "content_type": "application/json",
+        "delivery_mode": 2
+      },
+      "headers": {
+        "x-acemq-id": "11111111-2222-3333-4444-555555555555",
+        "x-acemq-type": "order.placed",
+        "x-acemq-version": 3,
+        "x-acemq-correlation": "corr-1",
+        "x-acemq-causation": "cause-1",
+        "x-acemq-attempt": 1,
+        "x-acemq-first-seen": {"$type": "int", "$gt": 1700000000000},
+        "x-acemq-origin": {"$regex": "^tck@[^@]+$"},
+        "x-tenant": "acme"
+      }
+    }}
+  ]
+}

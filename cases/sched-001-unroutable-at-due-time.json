@@ -1,0 +1,18 @@
+{
+  "id": "SCHED-001",
+  "title": "a due message nothing is bound for yet is kept and delivered once something is",
+  "requirements": ["AMQP-SCHED-001", "AMQP-SCHED-002", "AMQP-SCHED-003", "AMQP-PUB-002"],
+  "comment": "The deployment-order case: scheduled to a routing key whose queue is bound later. Python dropped it; Go and Java dead-lettered it to acemq.schedule.due.dlq.",
+  "steps": [
+    {"broker": "declareExchange", "exchange": "${ns}.ex", "type": "direct"},
+    {"driver": "schedule", "delayMs": 2000, "exchange": "${ns}.ex", "routingKey": "late.binding", "body": {"id": "s-1"}},
+    {"comment": "due at 2s and refused at least once by 8s", "sleep": 8000},
+    {"expect": "noMessagesIn", "pattern": "\\.(dlq|parked)$"},
+    {"broker": "declareQueue", "queue": "${ns}.bound-later"},
+    {"broker": "bind", "queue": "${ns}.bound-later", "exchange": "${ns}.ex", "routingKey": "late.binding"},
+    {"expect": "message", "queue": "${ns}.bound-later", "withinMs": 30000, "match": {"body": {"id": "s-1"}}},
+    {"sleep": 12000},
+    {"expect": "depth", "queue": "${ns}.bound-later", "count": 0},
+    {"expect": "noMessagesIn", "pattern": "\\.(dlq|parked)$"}
+  ]
+}

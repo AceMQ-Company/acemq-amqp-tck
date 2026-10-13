@@ -1,0 +1,29 @@
+{
+  "id": "ENV-001",
+  "title": "a publish that supplies nothing gets the whole envelope",
+  "requirements": ["AMQP-ENV-001", "AMQP-ENV-002", "AMQP-ENV-003", "AMQP-ENV-004", "AMQP-ENV-005", "AMQP-ENV-006", "AMQP-ENV-007", "AMQP-ENV-008", "AMQP-ENV-009", "AMQP-ENV-011", "AMQP-ENV-012"],
+  "fixture": "fixtures/envelope-fixtures.json#minimal",
+  "steps": [
+    {"broker": "declareQueue", "queue": "${ns}.plain"},
+    {"driver": "publish", "exchange": "", "routingKey": "${ns}.plain", "body": {"id": "o-1"}},
+    {"expect": "message", "queue": "${ns}.plain", "withinMs": 5000, "match": {
+      "body": {"id": "o-1"},
+      "properties": {
+        "message_id": {"$regex": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"},
+        "content_type": "application/json",
+        "delivery_mode": 2
+      },
+      "headers": {
+        "x-acemq-id": {"$sameAs": "properties/message_id"},
+        "x-acemq-correlation": {"$sameAs": "properties/message_id"},
+        "x-acemq-causation": {"$absent": true},
+        "x-acemq-attempt": 1,
+        "x-acemq-version": 1,
+        "x-acemq-type": "${ns}.plain",
+        "x-acemq-first-seen": {"$type": "int", "$gt": 1700000000000},
+        "x-acemq-origin": {"$regex": "^tck@[^@]+$"},
+        "x-acemq-claim": {"$absent": true}
+      }
+    }}
+  ]
+}

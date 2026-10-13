@@ -1,0 +1,15 @@
+{
+  "id": "RR-001",
+  "title": "a request is answered, and the reply queue leaves no dead-letter or parked queue behind",
+  "requirements": ["AMQP-RR-001", "AMQP-RR-003"],
+  "comment": "The control for RR-002: the same peer answering in JSON proves the runner's responder is one a requester accepts.",
+  "steps": [
+    {"broker": "declareQueue", "queue": "${ns}.requests"},
+    {"broker": "respond", "queue": "${ns}.requests", "body": {"price": 42}, "contentType": "application/json"},
+    {"driver": "request", "exchange": "", "routingKey": "${ns}.requests", "body": {"sku": "A-1"}, "timeoutMs": 15000, "as": "call"},
+    {"expect": "step", "step": "call", "match": {"ok": true, "result": {"reply": {"price": 42}}}},
+    {"expect": "noNewQueues", "pattern": "\\.(dlq|parked)$"},
+    {"driver": "end"},
+    {"expect": "noNewQueues", "pattern": "\\.(dlq|parked)$"}
+  ]
+}

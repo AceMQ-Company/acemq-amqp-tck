@@ -1,0 +1,83 @@
+{
+  "generatedBy": "acemq-java-amqp AvroResolutionFixtures",
+  "contract": "when an AceMQ library resolves an Avro message onto a reader schema, and what a message decodes to when it does not",
+  "rule": "resolution happens when the library has a reader schema to resolve onto, and not otherwise. That is the whole rule, and it is the same rule in all five languages. The libraries differ only in where a reader schema comes from, so they differ in how often they have one -- which is a difference in what each language can know, not a disagreement about Avro",
+  "columns": {
+    "resolved": "what a reader that holds a reader schema sees: the writer's bytes reconciled with the reader's declaration. A field the writer omitted is filled in from the reader's default; a field the writer added and the reader does not declare is skipped",
+    "writerShape": "what a reader sees when no declaration of its own stands between it and the bytes: the writer's record as it was written. Nothing is filled in and nothing is skipped, because there is no reader's declaration saying what to fill in or leave out. A reader arrives here either by holding no reader schema at all, or by holding the writer's own -- resolving a schema onto itself changes nothing, which is how a library that always resolves reaches this column"
+  },
+  "libraries": [
+    {
+      "library": "acemq-go-amqp",
+      "column": "writerShape",
+      "why": "the schema Registered(registry, subject, schema) takes is the one this codec writes with, and a Go struct carries no schema either, so by default there is nothing of the reader's to resolve onto. A caller who passes avro.ReaderSchema(...) has given it one, and that call moves Go to the resolved column. writerShape is Go's default rather than the only answer it has, and Go asserts both"
+    },
+    {
+      "library": "acemq-java-amqp",
+      "column": "both",
+      "why": "a GenericRecord asks for nothing in particular, so the reader schema is the writer's and nothing resolves; a generated SpecificRecord class carries a schema of its own, and registered(registry, readerSchema) is handed one, and either of those resolves. All five libraries can reach both columns and all five assert both. What is only true of Java is that it reaches writerShape without naming a schema at all: registered(registry) is handed none, so the writer's schema comes off the wire and serves as the reader's. The other four have to ask -- Go by leaving avro.ReaderSchema(...) off, Python and Ruby by passing the writer's schema as the reader schema, .NET by calling WithoutReaderSchema()"
+    },
+    {
+      "library": "acemq-dotnet-amqp",
+      "column": "resolved",
+      "why": "the codec is constructed with a schema, so there is always one to resolve onto -- unless the caller declines it. Registered(registry, schema, readerSchema) reads against a different schema than it writes, and WithoutReaderSchema() leaves the codec with none at all, which is how .NET reaches writerShape. resolved is .NET's default, not the only answer it has"
+    },
+    {
+      "library": "acemq-python-amqp",
+      "column": "resolved",
+      "why": "a registered codec is constructed with a schema, and that schema is the reader schema unless reader_schema= names another, so there is always one to resolve onto. Python reaches writerShape by making the two the same: from_registry with the writer's schema, or reading(writerSchema), resolves the writer's schema onto itself and leaves the record as written. A fixed-schema AvroCodec(schema) has no registry to learn a writer's schema from, so it reads what it writes and there is nothing per message to resolve"
+    },
+    {
+      "library": "acemq-ruby-amqp",
+      "column": "resolved",
+      "why": "registered(registry, subject:, schema:) is constructed with a schema, and that schema is the reader schema unless reader_schema: names another, so a registered codec always has one to resolve onto. The column belongs to registered specifically: AvroCodec.of fixes one schema for the codec's whole life, reads what it writes, resolves nothing, and refuses reader_schema: with an ArgumentError. Ruby reaches writerShape by passing the writer's schema as reader_schema:"
+    }
+  ],
+  "bodyEncoding": "base64. Decoding it gives the bytes this library puts on the wire: one zero byte, then four bytes of schema id big-endian, then the Avro body -- the framing Confluent's clients use. schemaId is the number in those four bytes, and it is the id the writerSchema is registered under",
+  "schemaEncoding": "writerSchema and readerSchema are the schema text, as a JSON string rather than as a nested object. It is the exact text registered under schemaId: re-rendering a parsed schema is not guaranteed to give the same bytes back, and the bytes are what the identifier stands for",
+  "howToAssert": "register writerSchema under schemaId, decode body, and compare with the column your library lands on in the table above. A library that can do both should assert both. The fields of resolved and writerShape are in the order their schema declares them; a library whose decoded form is unordered should compare as a map",
+  "cases": [
+    {
+      "case": "field-removed-by-the-writer",
+      "what": "the writer does not have a field the reader declares with a default. This is the case where the two columns differ in a value rather than in a spare key, and the case that leaves somebody in another service staring at a field they are certain they declared",
+      "schemaId": 101,
+      "writerSchema": "{\"type\":\"record\",\"name\":\"ResolutionOrder\",\"namespace\":\"org.acemq.amqp.test.avro\",\"fields\":[{\"name\":\"orderId\",\"type\":\"string\"},{\"name\":\"total\",\"type\":\"int\"}]}",
+      "readerSchema": "{\"type\":\"record\",\"name\":\"ResolutionOrder\",\"namespace\":\"org.acemq.amqp.test.avro\",\"fields\":[{\"name\":\"orderId\",\"type\":\"string\"},{\"name\":\"total\",\"type\":\"int\"},{\"name\":\"currency\",\"type\":\"string\",\"default\":\"GBP\"}]}",
+      "bodyBase64": "AAAAAGUGby0xxBM=",
+      "resolved": {
+        "orderId": "o-1",
+        "total": 1250,
+        "currency": "GBP"
+      },
+      "writerShape": {
+        "orderId": "o-1",
+        "total": 1250
+      }
+    },
+    {
+      "case": "field-added-by-the-writer",
+      "what": "the writer has a field the reader does not declare. Harmless either way, and pinned precisely because it is the case everybody assumes is the dangerous one: the fields the reader knows decode correctly in both columns, and the unknown field does not shift them",
+      "schemaId": 102,
+      "writerSchema": "{\"type\":\"record\",\"name\":\"ResolutionOrder\",\"namespace\":\"org.acemq.amqp.test.avro\",\"fields\":[{\"name\":\"orderId\",\"type\":\"string\"},{\"name\":\"total\",\"type\":\"int\"},{\"name\":\"currency\",\"type\":\"string\",\"default\":\"GBP\"},{\"name\":\"channel\",\"type\":\"string\"}]}",
+      "readerSchema": "{\"type\":\"record\",\"name\":\"ResolutionOrder\",\"namespace\":\"org.acemq.amqp.test.avro\",\"fields\":[{\"name\":\"orderId\",\"type\":\"string\"},{\"name\":\"total\",\"type\":\"int\"},{\"name\":\"currency\",\"type\":\"string\",\"default\":\"GBP\"}]}",
+      "bodyBase64": "AAAAAGYGby0yvA8GRVVSDG1vYmlsZQ==",
+      "resolved": {
+        "orderId": "o-2",
+        "total": 990,
+        "currency": "EUR"
+      },
+      "writerShape": {
+        "orderId": "o-2",
+        "total": 990,
+        "currency": "EUR",
+        "channel": "mobile"
+      }
+    }
+  ],
+  "notes": {
+    "whyTheDefaultIsNotAZeroValue": "the reader schema defaults currency to \"GBP\" and not to \"\". A default that is also the type's zero value passes whether resolution happened or not, because an absent field and a field defaulted to the zero value look identical at the assertion. \"GBP\" can only have come from the reader schema",
+    "neitherColumnIsTheWrongOne": "a library that resolves and a library that does not are both right about the same bytes. They are answering different questions, because only one of them was told what the reader expects",
+    "nothingHereChangesTheWire": "resolution is a reader-side decision. Both bodies were written by a plain registered codec, and a library that resolves reads exactly the same bytes as one that does not",
+    "whichToReachFor": "where a library can be asked for either behaviour, the one to reach for is resolved. It is what lets a producer be redeployed without its consumers, which is the entire reason the schema id is on the front of the message"
+  }
+}

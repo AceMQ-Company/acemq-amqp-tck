@@ -1,0 +1,76 @@
+{
+  "generatedBy": "acemq-java-amqp FixtureGen",
+  "contract": "the headers an AceMQ publish puts on the wire",
+  "cases": [
+    {
+      "case": "minimal",
+      "routingKey": "fx.plain",
+      "messageId": "f67aff08-6293-4ce2-af9e-1b8797fb8451",
+      "body": "\"{\\\"id\\\":\\\"o-1\\\"}\"",
+      "contentType": "application/json",
+      "headers": {
+        "x-acemq-attempt": 1  ,
+        "x-acemq-correlation": "f67aff08-6293-4ce2-af9e-1b8797fb8451"  ,
+        "x-acemq-first-seen": 1788968630038  ,
+        "x-acemq-id": "f67aff08-6293-4ce2-af9e-1b8797fb8451"  ,
+        "x-acemq-origin": "acemq@Kenshi.local"  ,
+        "x-acemq-type": "fx.plain"  ,
+        "x-acemq-version": 1  
+      }
+    },
+    {
+      "case": "populated",
+      "routingKey": "fx.rich",
+      "messageId": "11111111-2222-3333-4444-555555555555",
+      "body": "\"{\\\"id\\\":\\\"o-2\\\"}\"",
+      "contentType": "application/json",
+      "headers": {
+        "x-acemq-attempt": 1  ,
+        "x-acemq-causation": "cause-1"  ,
+        "x-acemq-correlation": "corr-1"  ,
+        "x-acemq-first-seen": 1767323045678  ,
+        "x-acemq-id": "11111111-2222-3333-4444-555555555555"  ,
+        "x-acemq-origin": "orders@host-7"  ,
+        "x-acemq-type": "order.placed"  ,
+        "x-acemq-version": 3  ,
+        "x-tenant": "acme"  
+      }
+    },
+    {
+      "case": "replayed",
+      "routingKey": "fx.replayed",
+      "messageId": "99999999-8888-7777-6666-555555555555",
+      "body": "\"{\\\"id\\\":\\\"o-3\\\"}\"",
+      "contentType": "application/json",
+      "headers": {
+        "acemq-replay-count": 2  ,
+        "acemq-replayed-at": "2026-02-03T04:05:06.789Z"  ,
+        "acemq-replayed-from": "orders.new.dlq"  ,
+        "x-acemq-attempt": 1  ,
+        "x-acemq-correlation": "corr-2"  ,
+        "x-acemq-first-seen": 1767323045678  ,
+        "x-acemq-id": "99999999-8888-7777-6666-555555555555"  ,
+        "x-acemq-origin": "orders@host-7"  ,
+        "x-acemq-type": "order.placed"  ,
+        "x-acemq-version": 1  
+      }
+    },
+    {
+      "case": "claimed",
+      "routingKey": "fx.claimed",
+      "messageId": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+      "body": "\"{\\\"id\\\":\\\"o-4\\\"}\"",
+      "contentType": "application/json",
+      "headers": {
+        "x-acemq-attempt": 1  ,
+        "x-acemq-claim": "s3://payloads/orders/o-4"  ,
+        "x-acemq-correlation": "corr-3"  ,
+        "x-acemq-first-seen": 1767323045678  ,
+        "x-acemq-id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"  ,
+        "x-acemq-origin": "orders@host-7"  ,
+        "x-acemq-type": "order.placed"  ,
+        "x-acemq-version": 1  
+      }
+    }
+  ]
+}

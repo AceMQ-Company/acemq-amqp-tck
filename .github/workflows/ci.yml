@@ -1,0 +1,46 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: cases and spec agree
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: The matcher does what the cases rely on
+        run: python3 runner/tck.py --self-test
+      - name: Every case is well formed and names requirements that exist
+        run: python3 runner/tck.py --validate
+      - name: VERSION matches the tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: test "v$(cat VERSION)" = "$GITHUB_REF_NAME"
+
+  smoke:
+    # The action end to end, against the library whose driver is quickest to
+    # start: proves action.yml, the runner and a real driver agree before a
+    # tag asks five libraries to pin it. Each library runs the full kit itself.
+    name: the action, against acemq-python-amqp main
+    runs-on: ubuntu-latest
+    needs: validate
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: AceMQ-Company/acemq-python-amqp
+          path: library
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e library
+      - uses: ./
+        with:
+          driver: python library/tests/tck/driver.py

@@ -1,0 +1,62 @@
+name: AceMQ AMQP TCK
+description: >
+  Starts a RabbitMQ with the management plugin, runs every TCK case through the
+  given driver, and fails the job if any case fails. The version of the TCK is
+  the ref this action is used at: AceMQ-Company/acemq-amqp-tck@v0.1.0.
+
+inputs:
+  driver:
+    description: Shell command that starts this library's TCK driver.
+    required: true
+  working-directory:
+    description: Where to run the driver command from.
+    default: .
+  image:
+    description: RabbitMQ image; it must include the management plugin.
+    default: rabbitmq:4-management
+  amqp-port:
+    description: Host port for AMQP. Not 5672, so a job that already runs a broker can run this too.
+    default: "5682"
+  management-port:
+    description: Host port for the management API.
+    default: "15682"
+  only:
+    description: Space-separated regular expressions on case ids; empty runs every case.
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Start RabbitMQ for the TCK
+      shell: bash
+      run: |
+        # Statistics every 500 ms rather than every 5 s, because the checker
+        # reads queue depths and consumer counts from the management API.
+        docker run -d --name acemq-tck-broker \
+          -p "${{ inputs.amqp-port }}:5672" -p "${{ inputs.management-port }}:15672" \
+          -e RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS="-rabbit collect_statistics_interval 500" \
+          "${{ inputs.image }}"
+
+    - name: Run the TCK
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        ACEMQ_TCK_AMQP_URL: amqp://guest:guest@localhost:${{ inputs.amqp-port }}/
+        ACEMQ_TCK_MANAGEMENT_URL: http://guest:guest@localhost:${{ inputs.management-port }}
+        TCK_DRIVER: ${{ inputs.driver }}
+        TCK_ONLY: ${{ inputs.only }}
+      run: |
+        only=()
+        for pattern in $TCK_ONLY; do only+=(--only "$pattern"); done
+        python3 "$GITHUB_ACTION_PATH/runner/tck.py" --driver "$TCK_DRIVER" "${only[@]}" \
+          --report "$RUNNER_TEMP/acemq-tck-report.json"
+
+    - name: Broker log on failure
+      if: failure()
+      shell: bash
+      run: docker logs acemq-tck-broker 2>&1 | tail -100
+
+    - name: Remove the TCK broker
+      if: always()
+      shell: bash
+      run: docker rm -f acemq-tck-broker >/dev/null 2>&1 || true
