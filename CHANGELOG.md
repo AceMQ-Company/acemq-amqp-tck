@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-13
+
+- RR-004, TEL-001, TEL-002 and TEL-003 move from `cases/pending/` into the
+  default run (19 cases). Every library passes them: Java 0.7.15 (responder
+  failure in `acemq-error`; a publish into a blocked broker refused at once),
+  Python 0.7.12 and Go 0.9.9 (the first publish after a memory alarm bounded
+  instead of hanging; Go also writes `acemq.consume.attempts`), Ruby 0.7.14
+  (`acemq.publish.duration`, `routing.key` and `message.type` tags), .NET
+  0.7.13 (responder failure in `acemq-error`).
+
 ## [0.1.0] - 2026-10-13
 
 The first version: the specification, a runner with one shared checker, and

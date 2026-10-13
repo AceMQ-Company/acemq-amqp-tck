@@ -9,12 +9,9 @@ They are kept out of the default run, so that a tagged TCK is one every
 library passes, and run with `--pending`. A pending case moves into `cases/`
 — and the TCK takes a minor version — once all five pass it.
 
-| Case | Requirement | Java | Python | Ruby | .NET | Go |
-|---|---|---|---|---|---|---|
-| RR-004 responder failure via `acemq-error` | AMQP-RR-005 | **fails**: no responder-failure header on either side | pass | pass | **fails**: no responder-failure header on either side | pass |
-| TEL-001 metric names, tags, outcomes | AMQP-TEL-001..004 | pass | pass | **fails**: no `acemq.publish.duration`; `acemq.publish.total` has no `routing.key` tag | pass | **fails**: no `acemq.consume.attempts` (its observer has no distribution type) |
-| TEL-002 a nack is counted `failed` | AMQP-TEL-003 | pass | pass | **fails**: no `routing.key` tag | pass | pass |
-| TEL-003 a publish into a blocked broker is bounded; a declined one is `paused` | AMQP-PUB-005 | **fails**: the declined publish waits the 30 s `blockedTimeout` before it is refused | **fails**: the first publish after the alarm waits until it clears (over 150 s); `confirm_timeout` bounds only the wait for a permit | pass | pass | **fails**: the first publish after the alarm waits until it clears; no setting bounds the confirm wait |
+None at the moment. RR-004 and TEL-001..003 moved into `cases/` in v0.2.0,
+once Java 0.7.15, Python 0.7.12, Ruby 0.7.14, .NET 0.7.13 and Go 0.9.9 passed
+them.
 
 ## Requirements without a case
 
