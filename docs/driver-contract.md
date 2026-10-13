@@ -54,7 +54,7 @@ in `hello` fails every case that uses it.
 | `schedule` | `delayMs`, `exchange`, `routingKey`, `body` | `{}` | schedule `body` through the library's scheduler, opening one for this case on first use |
 | `request` | `exchange`, `routingKey`, `body`, `timeoutMs` | `{"reply": value}` | a request/reply call with the library's default reply queue and JSON codec, opening one requester per destination for this case on first use. Failure kinds: `decode`, `timeout`, `responder` |
 
-### Since 0.2.0
+### Streams and telemetry
 
 | op | arguments | result | what it does |
 |---|---|---|---|

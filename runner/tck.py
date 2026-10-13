@@ -635,7 +635,11 @@ def main():
     driver = Driver(args.driver, env)
     results = []
     try:
-        hello = driver.call("hello", timeout=600)
+        try:
+            hello = driver.call("hello", timeout=600)
+        except CaseFailed as e:
+            print(f"the driver did not start: {e}")
+            return 1
         if not hello.get("ok"):
             print(f"driver refused hello: {hello}")
             return 1

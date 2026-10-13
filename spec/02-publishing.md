@@ -2,7 +2,8 @@
 
 ### AMQP-PUB-001 (MUST) What is published on the user's behalf is mandatory and confirmed
 
-Cases: none yet (the flags are not broker-observable; see ROADMAP)
+Cases: PUB-001, PUB-002 (with confirms off; the flags themselves are not
+broker-observable, so the cases check their consequence: nothing is lost)
 
 Every publish the library makes on the user's behalf — retry hops, dead-letter
 and park, scheduler hops and due deliveries, replies, outbox relays — is
@@ -28,7 +29,7 @@ it was unroutable, distinguishable from a refusal.
 
 ### AMQP-PUB-004 (MUST) Back pressure is distinguishable from a publish that may be lost
 
-Cases: TEL-002, TEL-003
+Cases: TEL-002, TEL-003 (pending)
 
 A publish the library declines to send because the broker is blocking
 publishers (a resource alarm) raises an error that says nothing was sent,
@@ -37,7 +38,7 @@ message it was given. See also AMQP-TEL-003.
 
 ### AMQP-PUB-005 (MUST) A publish into a blocked broker is bounded
 
-Cases: TEL-003
+Cases: TEL-003 (pending)
 
 A publish that is waiting on a broker which has blocked publishers (a resource
 alarm) fails within the library's blocked timeout rather than waiting for the

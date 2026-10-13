@@ -13,9 +13,14 @@ messages that cannot be decoded go to `{queue}.parked`. The numeric contract
 Cases: RETRY-001
 
 When the publish that carries a retry onward (to the source queue or a rung)
-fails — refused, nacked, unroutable, or the publishing channel is gone — the
-delivery it was for is requeued. No other delivery in flight on the consumer
-is settled, redelivered or delayed by it.
+fails — refused, nacked, or the publishing channel is gone — the delivery it
+was for is requeued at once. No other delivery in flight on the consumer is
+settled, redelivered or delayed by it.
+
+A rung that is **missing** (the hop is returned unroutable) MAY instead be
+waited out in the consumer and the message republished to the source queue,
+counted on `acemq.retry.rung.missing` — the degraded path for a consumer
+started without declaring its topology. Nothing is lost either way.
 
 ### AMQP-RETRY-002 (MUST) The consumer survives a failed hop
 

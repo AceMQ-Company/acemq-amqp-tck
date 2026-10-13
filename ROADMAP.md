@@ -1,0 +1,49 @@
+# Roadmap
+
+What the kit does not cover yet, and what it found that is not closed.
+
+## Pending cases — divergences not every library has closed
+
+`cases/pending/` holds cases that pass in some libraries and fail in others.
+They are kept out of the default run, so that a tagged TCK is one every
+library passes, and run with `--pending`. A pending case moves into `cases/`
+— and the TCK takes a minor version — once all five pass it.
+
+| Case | Requirement | Java | Python | Ruby | .NET | Go |
+|---|---|---|---|---|---|---|
+| RR-004 responder failure via `acemq-error` | AMQP-RR-005 | **fails**: no responder-failure header on either side | pass | pass | **fails**: no responder-failure header on either side | pass |
+| TEL-001 metric names, tags, outcomes | AMQP-TEL-001..004 | pass | pass | **fails**: no `acemq.publish.duration`; `acemq.publish.total` has no `routing.key` tag | pass | **fails**: no `acemq.consume.attempts` (its observer has no distribution type) |
+| TEL-002 a nack is counted `failed` | AMQP-TEL-003 | pass | pass | **fails**: no `routing.key` tag | pass | pass |
+| TEL-003 a publish into a blocked broker is bounded; a declined one is `paused` | AMQP-PUB-005 | **fails**: the declined publish waits the 30 s `blockedTimeout` before it is refused | **fails**: the first publish after the alarm waits until it clears (over 150 s); `confirm_timeout` bounds only the wait for a permit | pass | pass | **fails**: the first publish after the alarm waits until it clears; no setting bounds the confirm wait |
+
+## Requirements without a case
+
+| Requirement | Why not yet |
+|---|---|
+| AMQP-ENV-013 replay audit headers | needs a `replay` driver op |
+| AMQP-PUB-001 mandatory flag on on-behalf publishes | the flag is not broker-observable; PUB-001/PUB-002 check its consequence (nothing lost with confirms off) instead |
+| AMQP-PUB-003 unroutable user publish is an error | needs a `mandatory` argument on `publish`; Java and .NET report unroutable and nacked as one exception type, so drivers tell them apart by message text |
+| AMQP-STREAM-003 retry on a stream does not append | needs a failing handler on `readStream` |
+
+## Known limits of the cases that exist
+
+- **A hop publish that throws** (rather than being refused). Java's channel
+  closed when the retry hop's publish threw on a lost publishing channel
+  (fixed in 0.7.14, covered by Java's own `RetryHopFailureIT`). A broker
+  refusal does not throw in Java, and nothing reachable from the broker makes
+  a default-exchange publish throw without also closing the consumer's
+  connection, so RETRY-001 and RETRY-003 do not reproduce it.
+- **Quorum rungs.** RETRY-003 refuses the rung hop with a reject-publish
+  policy. A quorum queue admits one message into an empty queue at a limit of
+  zero, so on a library whose rungs are quorum queues the case is weaker.
+- **One broker version.** The action runs `rabbitmq:4-management`; a library
+  can pass `image: rabbitmq:3.13-management` for its compatibility job.
+
+## Next
+
+1. Close the pending divergences in the libraries, move the cases into
+   `cases/`, tag v0.2.0, move every pin.
+2. Driver ops for replay, unroutable user publishes and failing stream
+   handlers, so the last requirements get cases.
+3. Fold `scripts/parity.sh`'s capability list into the spec, so "does every
+   library have X" and "does X behave the same" are answered in one place.
