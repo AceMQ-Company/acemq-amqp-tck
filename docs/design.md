@@ -13,7 +13,7 @@ suite passed:
 | Behaviour | What diverged |
 |---|---|
 | a scheduled message due at a destination nothing is bound to | Python dropped it; Go and Java dead-lettered it |
-| a retry hop whose publish fails | Java closed the channel; Ruby left the delivery unacknowledged |
+| a retry hop whose publish fails | Java closed the channel when the publish threw; Ruby left the delivery unacknowledged when a rung refused it |
 | a reply the caller cannot decode | Python, Go and Ruby waited out the timeout |
 | a generated reply queue | Go and Ruby left a durable `.dlq` and `.parked` behind each one |
 | publishes made on the user's behalf | not all mandatory and confirmed when the user's confirms were off |

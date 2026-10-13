@@ -1,0 +1,12 @@
+{
+  "id": "SCHED-002",
+  "title": "a scheduled message is not delivered before it is due",
+  "requirements": ["AMQP-SCHED-004"],
+  "steps": [
+    {"broker": "declareQueue", "queue": "${ns}.later"},
+    {"driver": "schedule", "delayMs": 4000, "exchange": "", "routingKey": "${ns}.later", "body": {"id": "s-2"}},
+    {"sleep": 3000},
+    {"expect": "depth", "queue": "${ns}.later", "count": 0},
+    {"expect": "message", "queue": "${ns}.later", "withinMs": 20000, "match": {"body": {"id": "s-2"}}}
+  ]
+}

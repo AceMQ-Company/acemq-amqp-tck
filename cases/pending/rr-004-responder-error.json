@@ -1,0 +1,13 @@
+{
+  "id": "RR-004",
+  "title": "a reply carrying acemq-error is raised as the responder's failure",
+  "requirements": ["AMQP-RR-005"],
+  "comment": "The body is deliberately not JSON: the responder's failure is checked before the body is decoded.",
+  "steps": [
+    {"broker": "declareQueue", "queue": "${ns}.requests"},
+    {"broker": "respond", "queue": "${ns}.requests", "body": "", "contentType": "application/json",
+     "headers": {"acemq-error": "out of stock"}},
+    {"driver": "request", "exchange": "", "routingKey": "${ns}.requests", "body": {"sku": "A-1"}, "timeoutMs": 15000, "as": "call"},
+    {"expect": "step", "step": "call", "match": {"ok": false, "error": {"kind": "responder"}, "elapsedMs": {"$lt": 5000}}}
+  ]
+}

@@ -26,15 +26,19 @@ the failure are handled without a restart.
 
 ### AMQP-RETRY-003 (MUST) A hop advances the attempt
 
-Cases: none yet
+Cases: RETRY-002
 
 The republished message carries `x-acemq-attempt` one greater than the
 delivery it replaces, and every other envelope header unchanged.
 
 ### AMQP-RETRY-004 (MUST) Failure queues are named `{queue}.dlq`, `{queue}.parked`, `{queue}.retry.{delay}`
 
-Cases: RETRY-001 (dlq, parked)
+Cases: RETRY-001, RETRY-002
 
 ### AMQP-RETRY-005 (MUST) Exhausted retries are dead-lettered with the reason
 
-Cases: none yet
+Cases: RETRY-002
+
+The message in `{queue}.dlq` carries the attempt it failed on, every
+envelope and application header it arrived with, and the reason as a string
+in `x-acemq-error`.

@@ -26,6 +26,6 @@ Within one ten-second rung of the binding appearing, and exactly once.
 
 ### AMQP-SCHED-004 (MUST) Never early
 
-Cases: none yet
+Cases: SCHED-002
 
 A scheduled message is not delivered before its due time.

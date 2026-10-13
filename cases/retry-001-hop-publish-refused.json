@@ -1,38 +1,172 @@
 {
   "id": "RETRY-001",
   "title": "a retry hop the broker refuses requeues only that delivery, and the consumer carries on",
-  "requirements": ["AMQP-RETRY-001", "AMQP-RETRY-002", "AMQP-PUB-002"],
+  "requirements": [
+    "AMQP-RETRY-001",
+    "AMQP-RETRY-002",
+    "AMQP-PUB-002"
+  ],
   "comment": [
-    "Java closed the channel, sending every in-flight delivery back and stopping the consumer; Ruby left the delivery unacknowledged for the life of the channel.",
+    "Ruby left a refused hop's delivery unacknowledged for the life of the channel (the rung path is RETRY-003). Java closed the channel when the hop publish threw; a broker refusal does not throw there, so that bug is not reachable from the broker and stays covered by Java's own RetryHopFailureIT (see ROADMAP).",
     "The broker refuses the hop through a reject-publish policy on the source queue and its rungs, applied once the five messages are in and before the first retry's wait is over.",
     "Prefetch 2 keeps m1 and m2 in flight and m3..m5 ready, so the queue is over its limit of zero when the hop is attempted, for quorum queues as well as classic ones.",
     "m1 coming back with the redelivered flag set is the broker's own evidence that it was requeued rather than republished; m2 never being redelivered is the evidence that nothing else was settled with it."
   ],
   "steps": [
-    {"driver": "consume", "queue": "${ns}.work", "handle": "c1", "prefetch": 2,
-     "retry": {"maxAttempts": 3, "delayMs": 5000},
-     "behaviour": {"failFirst": {"m1": 1}, "sleepMs": 100}},
-    {"expect": "consumers", "queue": "${ns}.work", "count": 1, "withinMs": 10000},
-    {"driver": "publish", "exchange": "", "routingKey": "${ns}.work", "body": {"id": "m1"}},
-    {"driver": "publish", "exchange": "", "routingKey": "${ns}.work", "body": {"id": "m2"}},
-    {"driver": "publish", "exchange": "", "routingKey": "${ns}.work", "body": {"id": "m3"}},
-    {"driver": "publish", "exchange": "", "routingKey": "${ns}.work", "body": {"id": "m4"}},
-    {"driver": "publish", "exchange": "", "routingKey": "${ns}.work", "body": {"id": "m5"}},
-    {"broker": "policy", "name": "${ns}.refuse", "pattern": "^${nsre}\\.work(\\.retry\\..+)?$",
-     "definition": {"max-length": 0, "overflow": "reject-publish"}},
-    {"comment": "the hop is attempted at about 5s and refused", "sleep": 6000},
-    {"expect": "driver", "call": {"op": "handled", "handle": "c1"}, "withinMs": 20000,
-     "match": {
-       "counts": {"m1": 2, "m2": 1, "m3": 1, "m4": 1, "m5": 1},
-       "redelivered": {"m1": 1, "m2": {"$absent": true}, "m3": {"$absent": true}, "m4": {"$absent": true}, "m5": {"$absent": true}}
-     }},
-    {"expect": "consumers", "queue": "${ns}.work", "count": 1},
-    {"broker": "clearPolicy", "name": "${ns}.refuse"},
-    {"sleep": 1000},
-    {"driver": "publish", "exchange": "", "routingKey": "${ns}.work", "body": {"id": "m6"}},
-    {"expect": "driver", "call": {"op": "handled", "handle": "c1"}, "withinMs": 15000,
-     "match": {"counts": {"m1": 2, "m2": 1, "m3": 1, "m4": 1, "m5": 1, "m6": 1}}},
-    {"expect": "depth", "queue": "${ns}.work", "count": 0, "withinMs": 10000},
-    {"expect": "noMessagesIn", "pattern": "^${nsre}\\.work\\.(dlq|parked)$"}
+    {
+      "driver": "consume",
+      "queue": "${ns}.work",
+      "handle": "c1",
+      "prefetch": 2,
+      "retry": {
+        "maxAttempts": 3,
+        "delayMs": 5000
+      },
+      "behaviour": {
+        "failFirst": {
+          "m1": 1
+        },
+        "sleepMs": 100
+      }
+    },
+    {
+      "expect": "consumers",
+      "queue": "${ns}.work",
+      "count": 1,
+      "withinMs": 10000
+    },
+    {
+      "driver": "publish",
+      "exchange": "",
+      "routingKey": "${ns}.work",
+      "body": {
+        "id": "m1"
+      }
+    },
+    {
+      "driver": "publish",
+      "exchange": "",
+      "routingKey": "${ns}.work",
+      "body": {
+        "id": "m2"
+      }
+    },
+    {
+      "driver": "publish",
+      "exchange": "",
+      "routingKey": "${ns}.work",
+      "body": {
+        "id": "m3"
+      }
+    },
+    {
+      "driver": "publish",
+      "exchange": "",
+      "routingKey": "${ns}.work",
+      "body": {
+        "id": "m4"
+      }
+    },
+    {
+      "driver": "publish",
+      "exchange": "",
+      "routingKey": "${ns}.work",
+      "body": {
+        "id": "m5"
+      }
+    },
+    {
+      "broker": "policy",
+      "name": "${ns}.refuse",
+      "pattern": "^${nsre}\\.work(\\.retry\\..+)?$",
+      "definition": {
+        "max-length": 0,
+        "overflow": "reject-publish"
+      }
+    },
+    {
+      "comment": "the hop is attempted at about 5s and refused",
+      "sleep": 6000
+    },
+    {
+      "expect": "driver",
+      "call": {
+        "op": "handled",
+        "handle": "c1"
+      },
+      "withinMs": 20000,
+      "match": {
+        "counts": {
+          "m1": 2,
+          "m2": 1,
+          "m3": 1,
+          "m4": 1,
+          "m5": 1
+        },
+        "redelivered": {
+          "m1": 1,
+          "m2": {
+            "$absent": true
+          },
+          "m3": {
+            "$absent": true
+          },
+          "m4": {
+            "$absent": true
+          },
+          "m5": {
+            "$absent": true
+          }
+        }
+      }
+    },
+    {
+      "expect": "consumers",
+      "queue": "${ns}.work",
+      "count": 1
+    },
+    {
+      "broker": "clearPolicy",
+      "name": "${ns}.refuse"
+    },
+    {
+      "sleep": 1000
+    },
+    {
+      "driver": "publish",
+      "exchange": "",
+      "routingKey": "${ns}.work",
+      "body": {
+        "id": "m6"
+      }
+    },
+    {
+      "expect": "driver",
+      "call": {
+        "op": "handled",
+        "handle": "c1"
+      },
+      "withinMs": 15000,
+      "match": {
+        "counts": {
+          "m1": 2,
+          "m2": 1,
+          "m3": 1,
+          "m4": 1,
+          "m5": 1,
+          "m6": 1
+        }
+      }
+    },
+    {
+      "expect": "depth",
+      "queue": "${ns}.work",
+      "count": 0,
+      "withinMs": 10000
+    },
+    {
+      "expect": "noMessagesIn",
+      "pattern": "^${nsre}\\.work\\.(dlq|parked)$"
+    }
   ]
 }

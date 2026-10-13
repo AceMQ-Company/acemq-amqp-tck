@@ -26,9 +26,21 @@ Cases: none yet
 A mandatory publish the broker returns raises (or returns) an error that says
 it was unroutable, distinguishable from a refusal.
 
-### AMQP-PUB-004 (MUST) A refused publish is distinguishable from a failed one
+### AMQP-PUB-004 (MUST) Back pressure is distinguishable from a publish that may be lost
 
-Cases: none yet
+Cases: TEL-002, TEL-003
 
-A broker `basic.nack` or a back-pressure refusal is reported as refused, not
-as a generic failure. See also AMQP-TEL-003.
+A publish the library declines to send because the broker is blocking
+publishers (a resource alarm) raises an error that says nothing was sent,
+distinct from a broker `basic.nack`, which says the broker would not keep a
+message it was given. See also AMQP-TEL-003.
+
+### AMQP-PUB-005 (MUST) A publish into a blocked broker is bounded
+
+Cases: TEL-003
+
+A publish that is waiting on a broker which has blocked publishers (a resource
+alarm) fails within the library's blocked timeout rather than waiting for the
+alarm to clear. It is reported as possibly published (`failed`) when it was
+written before the block was known, and as `paused` / `refused` when the
+library knew and did not write it.

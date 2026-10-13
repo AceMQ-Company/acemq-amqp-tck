@@ -1,0 +1,24 @@
+{
+  "id": "RETRY-002",
+  "title": "a message that fails every attempt is dead-lettered, one attempt per hop, with the reason",
+  "requirements": ["AMQP-RETRY-003", "AMQP-RETRY-004", "AMQP-RETRY-005"],
+  "steps": [
+    {"driver": "consume", "queue": "${ns}.work", "handle": "c1", "prefetch": 10,
+     "retry": {"maxAttempts": 3, "delayMs": 300},
+     "behaviour": {"failFirst": {"m1": 1000}}},
+    {"driver": "publish", "exchange": "", "routingKey": "${ns}.work", "body": {"id": "m1"},
+     "envelope": {"correlationId": "corr-r2", "headers": {"x-tenant": "acme"}}},
+    {"expect": "message", "queue": "${ns}.work.dlq", "withinMs": 20000, "match": {
+      "body": {"id": "m1"},
+      "headers": {
+        "x-acemq-attempt": 3,
+        "x-acemq-correlation": "corr-r2",
+        "x-tenant": "acme",
+        "x-acemq-error": {"$type": "string", "$regex": "."}
+      }
+    }},
+    {"expect": "driver", "call": {"op": "handled", "handle": "c1"}, "match": {"counts": {"m1": 3}}},
+    {"expect": "depth", "queue": "${ns}.work", "count": 0, "withinMs": 5000},
+    {"expect": "queue", "queue": "${ns}.work.parked", "match": {"name": "${ns}.work.parked"}}
+  ]
+}

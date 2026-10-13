@@ -32,7 +32,8 @@ type's name) are for people reading the log, never matched by a case.
 | `decode` | the library's codec could not read a body |
 | `timeout` | a request/reply call got no reply in time |
 | `unroutable` | the broker returned a mandatory publish |
-| `refused` | the broker nacked a publish, or back pressure refused it |
+| `nacked` | the broker nacked a publish (it reached the broker, which would not keep it) |
+| `paused` | the library declined to send because the broker is blocking publishers (back pressure); nothing was written |
 | `responder` | a request/reply responder reported a failure |
 | `unsupported` | the op or an argument is not implemented by this driver |
 | `other` | anything else |
@@ -45,13 +46,21 @@ in `hello` fails every case that uses it.
 | op | arguments | result | what it does |
 |---|---|---|---|
 | `hello` | — | `{"library", "version", "ops": [...]}` | the library's name and version as the library reports it; the ops implemented |
-| `begin` | `case`, `clientName` | `{}` | close whatever the previous case left; open a fresh connection whose client name is `clientName` (it is what `x-acemq-origin` is built from) |
+| `begin` | `case`, `clientName`, `confirms`? | `{}` | close whatever the previous case left; open a fresh connection whose origin service is `clientName`, so `x-acemq-origin` is `{clientName}@{host}`. `confirms: false` turns publisher confirms off for the user's own publishes where the library has such a switch; a library that always confirms ignores it |
 | `end` | — | `{}` | close everything this case opened: consumers, schedulers, requesters, the connection. Idempotent: called again after a case's own `end` step |
 | `publish` | `exchange`, `routingKey`, `body`, `envelope`? | `{"messageId"}` | publish `body` (a JSON value) with the library's JSON codec and default publish settings. `envelope` may carry `id`, `type`, `version`, `correlationId`, `causationId`, `headers`; any field absent means "let the library decide" |
 | `consume` | `queue`, `handle`, `prefetch`, `retry: {maxAttempts, delayMs}`, `behaviour: {failFirst: {id: n}, sleepMs}` | `{}` | declare `queue` the way the library's own topology declares a consumed queue with that retry policy (source queue, dead-letter and parked queues, rungs), then consume it with a fixed-delay retry policy. The handler reads `body.id`, counts the delivery, sleeps `sleepMs`, and fails (with the library's ordinary retryable failure) for the first `n` deliveries of an id named in `failFirst` |
-| `handled` | `handle` | `{"counts": {id: n}, "redelivered": {id: n}}` | how many times the handler has been called for each id, and how many of those deliveries carried the AMQP `redelivered` flag (ids with none are left out) |
+| `handled` | `handle` | `{"counts": {id: n}, "redelivered": {id: n}, "order": [id, ...]}` | how many times the handler has been called for each id, how many of those deliveries carried the AMQP `redelivered` flag (ids with none are left out), and every id in the order it arrived |
 | `schedule` | `delayMs`, `exchange`, `routingKey`, `body` | `{}` | schedule `body` through the library's scheduler, opening one for this case on first use |
 | `request` | `exchange`, `routingKey`, `body`, `timeoutMs` | `{"reply": value}` | a request/reply call with the library's default reply queue and JSON codec, opening one requester per destination for this case on first use. Failure kinds: `decode`, `timeout`, `responder` |
+
+### Since 0.2.0
+
+| op | arguments | result | what it does |
+|---|---|---|---|
+| `declareStream` | `queue`, `maxAgeMs` | `{}` | declare a stream through the library's stream helper with that retention |
+| `readStream` | `queue`, `handle`, `offset` (`first` or `next`) | `{}` | read the stream through the library's stream reader with its default recovery; deliveries are counted under `handle` exactly like `consume`, and read back with `handled` |
+| `metrics` | — | `{"names": [...], "samples": [{"name", "tags"}]}` | every metric the library reported to its telemetry seam since `begin`, one sample per report, through a recorder the driver installs at `begin` |
 
 Arguments a driver does not recognise are ignored, so a case may add an
 optional argument without breaking older drivers; a new **op** is a new TCK

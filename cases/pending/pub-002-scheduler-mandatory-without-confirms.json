@@ -1,0 +1,68 @@
+{
+  "id": "PUB-002",
+  "title": "a due message nothing is bound for yet is kept and delivered once something is, with the user's publisher confirms off",
+  "requirements": [
+    "AMQP-PUB-001",
+    "AMQP-PUB-002"
+  ],
+  "comment": "The same case as SCHED-001, with confirms off for the user's own publishes: an on-behalf publish is confirmed and mandatory regardless. A library without a confirms switch always confirms and passes trivially.",
+  "steps": [
+    {
+      "broker": "declareExchange",
+      "exchange": "${ns}.ex",
+      "type": "direct"
+    },
+    {
+      "driver": "schedule",
+      "delayMs": 2000,
+      "exchange": "${ns}.ex",
+      "routingKey": "late.binding",
+      "body": {
+        "id": "s-1"
+      }
+    },
+    {
+      "comment": "due at 2s and refused at least once by 8s",
+      "sleep": 8000
+    },
+    {
+      "expect": "noMessagesIn",
+      "pattern": "\\.(dlq|parked)$"
+    },
+    {
+      "broker": "declareQueue",
+      "queue": "${ns}.bound-later"
+    },
+    {
+      "broker": "bind",
+      "queue": "${ns}.bound-later",
+      "exchange": "${ns}.ex",
+      "routingKey": "late.binding"
+    },
+    {
+      "expect": "message",
+      "queue": "${ns}.bound-later",
+      "withinMs": 30000,
+      "match": {
+        "body": {
+          "id": "s-1"
+        }
+      }
+    },
+    {
+      "sleep": 12000
+    },
+    {
+      "expect": "depth",
+      "queue": "${ns}.bound-later",
+      "count": 0
+    },
+    {
+      "expect": "noMessagesIn",
+      "pattern": "\\.(dlq|parked)$"
+    }
+  ],
+  "begin": {
+    "confirms": false
+  }
+}

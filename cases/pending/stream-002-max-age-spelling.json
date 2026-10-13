@@ -1,0 +1,10 @@
+{
+  "id": "STREAM-002",
+  "title": "a stream kept for an hour is declared with x-max-age 1h",
+  "requirements": ["AMQP-STREAM-002"],
+  "steps": [
+    {"driver": "declareStream", "queue": "${ns}.log", "maxAgeMs": 3600000},
+    {"expect": "queue", "queue": "${ns}.log", "withinMs": 5000,
+     "match": {"type": "stream", "arguments": {"x-queue-type": "stream", "x-max-age": "1h"}}}
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "ENV-003",
+  "title": "a publish under an empty routing key is typed `message`",
+  "requirements": ["AMQP-ENV-006"],
+  "steps": [
+    {"broker": "declareExchange", "exchange": "${ns}.fan", "type": "fanout"},
+    {"broker": "declareQueue", "queue": "${ns}.all"},
+    {"broker": "bind", "queue": "${ns}.all", "exchange": "${ns}.fan", "routingKey": ""},
+    {"driver": "publish", "exchange": "${ns}.fan", "routingKey": "", "body": {"id": "o-3"}},
+    {"expect": "message", "queue": "${ns}.all", "withinMs": 5000, "match": {
+      "body": {"id": "o-3"},
+      "headers": {"x-acemq-type": "message"}
+    }}
+  ]
+}

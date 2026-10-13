@@ -38,11 +38,13 @@ Cases: none yet
 
 ### AMQP-TEL-003 (MUST) Publish outcomes: `confirmed`, `unroutable`, `refused`, `failed`
 
-Cases: none yet
+Cases: TEL-001, TEL-002, TEL-003
 
-`refused` is a broker nack or back-pressure refusal; `failed` is everything
-else that kept a publish from being confirmed (connection lost, timeout). The
-two are never merged.
+`refused` is a publish the library declined to send — nothing was written,
+so nothing can have been lost: publishing paused by a blocked broker. `failed`
+is a message that may have been lost: nacked, never confirmed, unwritable. The
+two are never merged, because one is deliberate back pressure and the other is
+possible data loss. (The reference is `MetricNames.OUTCOME_REFUSED` in Java.)
 
 ### AMQP-TEL-004 (MUST) Consume outcomes
 

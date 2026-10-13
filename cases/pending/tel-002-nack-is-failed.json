@@ -1,0 +1,14 @@
+{
+  "id": "TEL-002",
+  "title": "a publish the broker nacks raises nacked and is counted failed",
+  "requirements": ["AMQP-TEL-003", "AMQP-PUB-004"],
+  "steps": [
+    {"broker": "declareQueue", "queue": "${ns}.full",
+     "args": {"x-queue-type": "classic", "x-max-length": 0, "x-overflow": "reject-publish"}},
+    {"driver": "publish", "exchange": "", "routingKey": "${ns}.full", "body": {"id": "p-1"}, "as": "pub"},
+    {"expect": "step", "step": "pub", "match": {"ok": false, "error": {"kind": "nacked"}}},
+    {"expect": "driver", "call": {"op": "metrics"}, "match": {
+      "samples": {"$contains": [{"name": "acemq.publish.total", "tags": {"outcome": "failed", "routing.key": "${ns}.full"}}]}
+    }}
+  ]
+}

@@ -34,15 +34,16 @@ runs:
         # reads queue depths and consumer counts from the management API.
         docker run -d --name acemq-tck-broker \
           -p "${{ inputs.amqp-port }}:5672" -p "${{ inputs.management-port }}:15672" \
-          -e RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS="-rabbit collect_statistics_interval 500" \
+          -e RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS="-rabbit collect_statistics_interval 500 -rabbit loopback_users []" \
           "${{ inputs.image }}"
 
     - name: Run the TCK
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       env:
-        ACEMQ_TCK_AMQP_URL: amqp://guest:guest@localhost:${{ inputs.amqp-port }}/
+        ACEMQ_TCK_AMQP_URL: amqp://guest:guest@localhost:${{ inputs.amqp-port }}
         ACEMQ_TCK_MANAGEMENT_URL: http://guest:guest@localhost:${{ inputs.management-port }}
+        ACEMQ_TCK_CTL: docker exec acemq-tck-broker rabbitmqctl
         TCK_DRIVER: ${{ inputs.driver }}
         TCK_ONLY: ${{ inputs.only }}
       run: |

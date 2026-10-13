@@ -1,0 +1,170 @@
+{
+  "id": "RETRY-003",
+  "title": "a hop into a broker rung that the broker refuses requeues only that delivery",
+  "requirements": [
+    "AMQP-RETRY-001",
+    "AMQP-RETRY-002",
+    "AMQP-PUB-002"
+  ],
+  "comment": [
+    "RETRY-001 for the other path: a delay at or above the 30-second broker-wait threshold, so the hop goes to {queue}.retry.{delay} rather than back to the source queue. Ruby before 0.7.12 left this delivery unacknowledged; the in-consumer path it shares with RETRY-001 was already right.",
+    "The policy covers only the rungs and is in place before anything is published, so the hop is refused at once and the case does not wait out the delay. A rung that is a quorum queue admits one message into an empty queue, so on such a library the case is weaker, not wrong."
+  ],
+  "steps": [
+    {
+      "driver": "consume",
+      "queue": "${ns}.work",
+      "handle": "c1",
+      "prefetch": 2,
+      "retry": {
+        "maxAttempts": 3,
+        "delayMs": 35000
+      },
+      "behaviour": {
+        "failFirst": {
+          "m1": 1
+        },
+        "sleepMs": 100
+      }
+    },
+    {
+      "expect": "consumers",
+      "queue": "${ns}.work",
+      "count": 1,
+      "withinMs": 10000
+    },
+    {
+      "broker": "policy",
+      "name": "${ns}.refuse",
+      "pattern": "^${nsre}\\.work\\.retry\\..+$",
+      "definition": {
+        "max-length": 0,
+        "overflow": "reject-publish"
+      }
+    },
+    {
+      "driver": "publish",
+      "exchange": "",
+      "routingKey": "${ns}.work",
+      "body": {
+        "id": "m1"
+      }
+    },
+    {
+      "driver": "publish",
+      "exchange": "",
+      "routingKey": "${ns}.work",
+      "body": {
+        "id": "m2"
+      }
+    },
+    {
+      "driver": "publish",
+      "exchange": "",
+      "routingKey": "${ns}.work",
+      "body": {
+        "id": "m3"
+      }
+    },
+    {
+      "driver": "publish",
+      "exchange": "",
+      "routingKey": "${ns}.work",
+      "body": {
+        "id": "m4"
+      }
+    },
+    {
+      "driver": "publish",
+      "exchange": "",
+      "routingKey": "${ns}.work",
+      "body": {
+        "id": "m5"
+      }
+    },
+    {
+      "comment": "refused at once; the requeued delivery is handled at once",
+      "sleep": 3000
+    },
+    {
+      "expect": "driver",
+      "call": {
+        "op": "handled",
+        "handle": "c1"
+      },
+      "withinMs": 20000,
+      "match": {
+        "counts": {
+          "m1": 2,
+          "m2": 1,
+          "m3": 1,
+          "m4": 1,
+          "m5": 1
+        },
+        "redelivered": {
+          "m1": 1,
+          "m2": {
+            "$absent": true
+          },
+          "m3": {
+            "$absent": true
+          },
+          "m4": {
+            "$absent": true
+          },
+          "m5": {
+            "$absent": true
+          }
+        }
+      }
+    },
+    {
+      "expect": "consumers",
+      "queue": "${ns}.work",
+      "count": 1
+    },
+    {
+      "broker": "clearPolicy",
+      "name": "${ns}.refuse"
+    },
+    {
+      "sleep": 1000
+    },
+    {
+      "driver": "publish",
+      "exchange": "",
+      "routingKey": "${ns}.work",
+      "body": {
+        "id": "m6"
+      }
+    },
+    {
+      "expect": "driver",
+      "call": {
+        "op": "handled",
+        "handle": "c1"
+      },
+      "withinMs": 15000,
+      "match": {
+        "counts": {
+          "m1": 2,
+          "m2": 1,
+          "m3": 1,
+          "m4": 1,
+          "m5": 1,
+          "m6": 1
+        }
+      }
+    },
+    {
+      "expect": "depth",
+      "queue": "${ns}.work",
+      "count": 0,
+      "withinMs": 10000
+    },
+    {
+      "expect": "noMessagesIn",
+      "pattern": "^${nsre}\\.work\\.(dlq|parked)$"
+    }
+  ]
+}

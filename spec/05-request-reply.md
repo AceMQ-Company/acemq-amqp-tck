@@ -26,11 +26,15 @@ The reply queue is a mailbox for one process; no `{reply queue}.dlq` or
 
 ### AMQP-RR-004 (MUST) No reply in time is a timeout error
 
-Cases: none yet
+Cases: RR-003
+
+Raised when the timeout elapses, not before, and the request itself is left
+where it was published.
 
 ### AMQP-RR-005 (MUST) A responder failure is raised as a responder error
 
-Cases: none yet
+Cases: RR-004
 
-A reply carrying `x-acemq-error` is raised as the responder's failure, checked
-before the body is decoded.
+A reply carrying the `acemq-error` header (the shared, unreserved namespace,
+so that a responder in any language can set it) is raised as the responder's
+failure, checked before the body is decoded.

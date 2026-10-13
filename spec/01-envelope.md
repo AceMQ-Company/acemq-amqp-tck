@@ -20,7 +20,7 @@ Cases: ENV-001, ENV-002
 | `x-acemq-causation` | long string | the id of the message that caused this one; absent when there is none |
 | `x-acemq-attempt` | integer | delivery attempt, 1 on first publish |
 | `x-acemq-first-seen` | integer | epoch milliseconds of the first publish |
-| `x-acemq-origin` | long string | `{clientName}@{hostname}` of the publisher |
+| `x-acemq-origin` | long string | `{service}@{hostname}` of the publisher |
 | `x-acemq-claim` | long string | claim-check URI; absent unless the payload was externalised |
 
 An integer header MUST be written as an AMQP integer type, never as a string.
@@ -48,7 +48,7 @@ Cases: ENV-001
 
 ### AMQP-ENV-006 (MUST) The type defaults to the routing key
 
-Cases: ENV-001
+Cases: ENV-001, ENV-003
 
 With no type supplied, `x-acemq-type` is the routing key the message was
 published under, and the literal `message` when that routing key is empty.
@@ -59,9 +59,13 @@ Cases: ENV-001, ENV-002
 
 Set on the first publish, and carried unchanged by every hop after it.
 
-### AMQP-ENV-008 (MUST) Origin is `{clientName}@{hostname}`
+### AMQP-ENV-008 (MUST) Origin is `{service}@{hostname}`
 
 Cases: ENV-001, ENV-002
+
+The service is what the connection was configured with — `acemq` when it was
+not — and the host is the machine the publisher runs on. A connection-level
+setting, so that a service does not have to stamp it on every envelope.
 
 ### AMQP-ENV-009 (MUST) Causation is absent unless supplied
 

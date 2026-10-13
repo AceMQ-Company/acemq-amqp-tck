@@ -1,0 +1,26 @@
+{
+  "id": "TEL-003",
+  "title": "a publish into a blocked broker is bounded, and one the library declines is paused and counted refused",
+  "requirements": ["AMQP-TEL-003", "AMQP-PUB-004", "AMQP-PUB-005"],
+  "comment": [
+    "A memory alarm. RabbitMQ tells a connection it is blocked only once it publishes, so the first publish after the alarm is written and then held: it may have reached the broker, and is bounded rather than hung (any failure, within a minute).",
+    "The second publish is made knowing the broker is blocked, so the library declines to write it: kind paused, outcome refused, promptly."
+  ],
+  "steps": [
+    {"broker": "declareQueue", "queue": "${ns}.q"},
+    {"driver": "publish", "exchange": "", "routingKey": "${ns}.q", "body": {"id": "warm-up"}},
+    {"broker": "ctl", "args": "set_vm_memory_high_watermark absolute 1"},
+    {"sleep": 2000},
+    {"driver": "publish", "exchange": "", "routingKey": "${ns}.q", "body": {"id": "p-0"}, "timeoutMs": 90000, "as": "first"},
+    {"expect": "step", "step": "first", "match": {"ok": false, "elapsedMs": {"$lt": 60000}}},
+    {"driver": "publish", "exchange": "", "routingKey": "${ns}.q", "body": {"id": "p-1"}, "timeoutMs": 90000, "as": "second"},
+    {"broker": "ctl", "args": "set_vm_memory_high_watermark 0.4"},
+    {"expect": "step", "step": "second", "match": {"ok": false, "error": {"kind": "paused"}, "elapsedMs": {"$lt": 5000}}},
+    {"expect": "driver", "call": {"op": "metrics"}, "match": {
+      "samples": {"$contains": [{"name": "acemq.publish.total", "tags": {"outcome": "refused"}}]}
+    }}
+  ],
+  "finally": [
+    {"broker": "ctl", "args": "set_vm_memory_high_watermark 0.4"}
+  ]
+}

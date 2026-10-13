@@ -1,0 +1,26 @@
+{
+  "id": "STREAM-001",
+  "title": "a stream reader resumes where it was after its connection is cut",
+  "requirements": ["AMQP-STREAM-001"],
+  "comment": "Resuming from the start delivers s-1..s-3 twice; resuming from next or last loses whatever was published while it was away.",
+  "steps": [
+    {"driver": "declareStream", "queue": "${ns}.log", "maxAgeMs": 3600000},
+    {"driver": "readStream", "queue": "${ns}.log", "handle": "r1", "offset": "first"},
+    {"expect": "consumers", "queue": "${ns}.log", "count": 1, "withinMs": 10000},
+    {"broker": "publish", "routingKey": "${ns}.log", "body": {"id": "s-1"}},
+    {"broker": "publish", "routingKey": "${ns}.log", "body": {"id": "s-2"}},
+    {"broker": "publish", "routingKey": "${ns}.log", "body": {"id": "s-3"}},
+    {"expect": "driver", "call": {"op": "handled", "handle": "r1"}, "withinMs": 10000,
+     "match": {"order": ["s-1", "s-2", "s-3"]}},
+    {"broker": "closeConnections"},
+    {"broker": "publish", "routingKey": "${ns}.log", "body": {"id": "s-4"}},
+    {"broker": "publish", "routingKey": "${ns}.log", "body": {"id": "s-5"}},
+    {"expect": "consumers", "queue": "${ns}.log", "count": 1, "withinMs": 30000},
+    {"broker": "publish", "routingKey": "${ns}.log", "body": {"id": "s-6"}},
+    {"expect": "driver", "call": {"op": "handled", "handle": "r1"}, "withinMs": 30000,
+     "match": {"order": ["s-1", "s-2", "s-3", "s-4", "s-5", "s-6"]}},
+    {"sleep": 2000},
+    {"expect": "driver", "call": {"op": "handled", "handle": "r1"},
+     "match": {"order": ["s-1", "s-2", "s-3", "s-4", "s-5", "s-6"]}}
+  ]
+}

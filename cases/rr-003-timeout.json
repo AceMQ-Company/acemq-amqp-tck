@@ -1,0 +1,13 @@
+{
+  "id": "RR-003",
+  "title": "a request nobody answers is a timeout error, raised at the timeout",
+  "requirements": ["AMQP-RR-004", "AMQP-RR-003"],
+  "steps": [
+    {"broker": "declareQueue", "queue": "${ns}.unanswered"},
+    {"driver": "request", "exchange": "", "routingKey": "${ns}.unanswered", "body": {"sku": "A-1"}, "timeoutMs": 2000, "as": "call"},
+    {"expect": "step", "step": "call", "match": {"ok": false, "error": {"kind": "timeout"}, "elapsedMs": {"$gte": 1900, "$lt": 8000}}},
+    {"expect": "depth", "queue": "${ns}.unanswered", "count": 1, "withinMs": 5000},
+    {"driver": "end"},
+    {"expect": "noNewQueues", "pattern": "\\.(dlq|parked)$"}
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "id": "TEL-001",
+  "title": "publishing, consuming and retrying report the reference metric names, tags and outcomes",
+  "requirements": ["AMQP-TEL-001", "AMQP-TEL-002", "AMQP-TEL-003", "AMQP-TEL-004"],
+  "steps": [
+    {"driver": "consume", "queue": "${ns}.work", "handle": "c1", "prefetch": 10,
+     "retry": {"maxAttempts": 3, "delayMs": 200},
+     "behaviour": {"failFirst": {"m1": 1}}},
+    {"driver": "publish", "exchange": "", "routingKey": "${ns}.work", "body": {"id": "m1"}},
+    {"expect": "driver", "call": {"op": "handled", "handle": "c1"}, "withinMs": 10000, "match": {"counts": {"m1": 2}}},
+    {"sleep": 500},
+    {"expect": "driver", "call": {"op": "metrics"}, "match": {
+      "names": {"$contains": [
+        "acemq.publish.total", "acemq.publish.duration",
+        "acemq.consume.total", "acemq.consume.duration", "acemq.consume.attempts",
+        "acemq.messages.retried.total"
+      ]},
+      "samples": {"$contains": [
+        {"name": "acemq.publish.total", "tags": {"outcome": "confirmed", "routing.key": "${ns}.work"}},
+        {"name": "acemq.consume.total", "tags": {"outcome": "acked", "queue": "${ns}.work"}},
+        {"name": "acemq.consume.total", "tags": {"outcome": "retried", "queue": "${ns}.work"}}
+      ]}
+    }}
+  ]
+}

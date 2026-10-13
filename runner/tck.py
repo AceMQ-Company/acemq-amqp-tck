@@ -117,6 +117,13 @@ def operator(op, want, actual, root):
         return None if actual in want else f"{actual!r} is not one of {want!r}"
     if op == "$absent":
         return None  # handled by the enclosing object
+    if op == "$contains":
+        if not isinstance(actual, list):
+            return f"{actual!r} is not a list"
+        for wanted in want:
+            if all(match(item, wanted, root) for item in actual):
+                return f"no element matches {wanted!r}"
+        return None
     return f"unknown operator {op}"
 
 
@@ -133,6 +140,8 @@ def self_test():
     assert match(1, {"$type": "int"}) is None and match("1", {"$type": "int"})
     assert match(True, 1) and match(1, True)
     assert match([1, {"a": 2}], [1, {"a": 2}]) is None
+    assert match([{"n": "a"}, {"n": "b", "t": 1}], {"$contains": [{"n": "b"}, "x"]})
+    assert match([{"n": "a"}, {"n": "b", "t": 1}], {"$contains": [{"n": "b"}, {"n": "a"}]}) is None
     assert substitute({"q": "${ns}.x", "n": ["${ns}"]}, {"ns": "t"}) == {"q": "t.x", "n": ["t"]}
     print("self-test: ok")
 
@@ -311,7 +320,7 @@ class Run:
         exchanges_before = self.broker.exchange_names()
         self.queues_before = queues_before
         try:
-            begin = self.driver.call("begin", {"case": self.case["id"], "clientName": "tck"})
+            begin = self.driver.call("begin", dict(self.case.get("begin", {}), case=self.case["id"], clientName="tck"))
             if not begin.get("ok"):
                 raise CaseFailed(f"driver could not begin: {begin.get('error')}")
             for index, step in enumerate(self.case["steps"], 1):
@@ -319,6 +328,11 @@ class Run:
             if self.peer_errors:
                 raise CaseFailed("peer: " + "; ".join(self.peer_errors))
         finally:
+            for step in self.case.get("finally", []):
+                try:
+                    self.step(0, step)
+                except CaseFailed as e:
+                    print(f"    (finally: {e})")
             self.stop.set()
             try:
                 self.driver.call("end", timeout=60)
@@ -326,12 +340,34 @@ class Run:
                 print(f"    (end: {e})")
             for thread in self.threads:
                 thread.join(timeout=5)
-            for name in self.policies:
-                self.broker.api("DELETE", f"policies/{VHOST}/{q(name)}", missing_ok=True)
-            for name in self.broker.queue_names() - queues_before:
-                self.broker.api("DELETE", f"queues/{VHOST}/{q(name)}", missing_ok=True)
-            for name in self.broker.exchange_names() - exchanges_before:
-                self.broker.api("DELETE", f"exchanges/{VHOST}/{q(name)}", missing_ok=True)
+            self.clean_up(queues_before, exchanges_before)
+
+    def clean_up(self, queues_before, exchanges_before):
+        """Removes what the case created, and never replaces the case's outcome.
+
+        An exclusive reply queue is still listed for a moment after its owner
+        closed, and refuses deletion until the broker has removed it itself, so
+        a refusal is retried for a few seconds and then left -- reported, not
+        raised, because a raise here would hide whether the case passed and
+        stop the rest of the clean-up, leaking into the next case.
+        """
+        paths = [f"policies/{VHOST}/{q(n)}" for n in self.policies]
+        deadline = time.monotonic() + 5
+        while True:
+            paths += [f"queues/{VHOST}/{q(n)}" for n in self.broker.queue_names() - queues_before]
+            paths += [f"exchanges/{VHOST}/{q(n)}" for n in self.broker.exchange_names() - exchanges_before]
+            left = []
+            for path in dict.fromkeys(paths):
+                try:
+                    self.broker.api("DELETE", path, missing_ok=True)
+                except CaseFailed:
+                    left.append(path)
+            if not left or time.monotonic() > deadline:
+                break
+            paths = []
+            time.sleep(0.5)
+        if left:
+            print(f"    (clean-up left {left})", flush=True)
 
     def step(self, index, step):
         kind = next((k for k in ("driver", "broker", "expect", "sleep") if k in step), None)
@@ -388,6 +424,24 @@ class Run:
             routed = b.publish(step.get("exchange", ""), step["routingKey"], step["body"], step.get("properties"))
             if not routed and step.get("mustRoute", True):
                 raise CaseFailed("the broker routed the publish nowhere")
+        elif op == "closeConnections":
+            # Every client connection on the broker: the runner has none of its
+            # own, so this is the driver's, cut the way a network failure cuts it.
+            closed = 0
+            for connection in b.api("GET", "connections?columns=name"):
+                b.api("DELETE", f"connections/{q(connection['name'])}", missing_ok=True)
+                closed += 1
+            if not closed:
+                raise CaseFailed("no connections to close")
+        elif op == "ctl":
+            # rabbitmqctl on the broker under test, for what the management API
+            # cannot do (a resource alarm). The action sets ACEMQ_TCK_CTL.
+            command = os.environ.get("ACEMQ_TCK_CTL")
+            if not command:
+                raise CaseFailed("this case needs ACEMQ_TCK_CTL (a command that runs rabbitmqctl on the broker)")
+            done = subprocess.run(f"{command} {step['args']}", shell=True, capture_output=True, text=True, timeout=60)
+            if done.returncode:
+                raise CaseFailed(f"rabbitmqctl {step['args']}: {done.stderr.strip() or done.stdout.strip()}")
         elif op == "respond":
             thread = threading.Thread(target=self.respond, args=(step,), daemon=True)
             thread.start()
@@ -447,7 +501,12 @@ class Run:
             if message is None:
                 return f"no message on {step['queue']}"
             self.log(f"  message: {json.dumps(message)[:600]}")
-            return match(message, step["match"])
+            problem = match(message, step["match"])
+            if problem:
+                # Taken off the queue by looking at it, so polling again would
+                # report "no message" and hide what was wrong with this one.
+                raise CaseFailed(f"{problem}\n        message: {json.dumps(message)[:1500]}")
+            return None
         if kind == "depth":
             info = b.queue(step["queue"])
             if info is None:
@@ -493,11 +552,17 @@ class Run:
 # entry points
 
 
-def load_cases(selected=None):
+def load_cases(selected=None, pending=False):
+    """The cases; with ``pending``, also those in cases/pending/ -- cases that
+    record a divergence not every library has closed yet, kept out of the
+    default run so that the tagged kit is one every library passes."""
     cases = []
-    for path in sorted((ROOT / "cases").glob("*.json")):
+    paths = sorted((ROOT / "cases").glob("*.json"))
+    if pending:
+        paths += sorted((ROOT / "cases" / "pending").glob("*.json"))
+    for path in paths:
         case = json.loads(path.read_text())
-        case["_file"] = path.name
+        case["_file"] = str(path.relative_to(ROOT / "cases"))
         if selected and not any(re.search(s, case["id"]) for s in selected):
             continue
         cases.append(case)
@@ -519,7 +584,7 @@ def validate():
     requirements = spec_requirements()
     problems = []
     ids = set()
-    for case in load_cases():
+    for case in load_cases(pending=True):
         where = case["_file"]
         for key in ("id", "title", "requirements", "steps"):
             if key not in case:
@@ -533,7 +598,7 @@ def validate():
         for step in case.get("steps", []):
             if sum(k in step for k in ("driver", "broker", "expect", "sleep")) != 1:
                 problems.append(f"{where}: a step must be exactly one of driver/broker/expect/sleep: {step}")
-    covered = {rid for case in load_cases() for rid in case.get("requirements", [])}
+    covered = {rid for case in load_cases(pending=True) for rid in case.get("requirements", [])}
     print(f"{len(requirements)} requirements, {len(ids)} cases, {len(covered)} requirements covered by a case")
     for problem in problems:
         print("  " + problem)
@@ -543,10 +608,11 @@ def validate():
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--driver", help="shell command that starts the driver")
-    parser.add_argument("--amqp", default=os.environ.get("ACEMQ_TCK_AMQP_URL", "amqp://guest:guest@localhost:5672/"))
+    parser.add_argument("--amqp", default=os.environ.get("ACEMQ_TCK_AMQP_URL", "amqp://guest:guest@localhost:5672"))
     parser.add_argument("--management", default=os.environ.get("ACEMQ_TCK_MANAGEMENT_URL", "http://guest:guest@localhost:15672"))
     parser.add_argument("--only", action="append", help="regex on case ids; repeatable")
     parser.add_argument("--report", help="write a JSON report here")
+    parser.add_argument("--pending", action="store_true", help="also run cases/pending/")
     parser.add_argument("--verbose", "-v", action="store_true")
     parser.add_argument("--validate", action="store_true")
     parser.add_argument("--self-test", action="store_true")
@@ -576,7 +642,7 @@ def main():
         info = hello["result"]
         supported = set(info.get("ops", []))
         print(f"driver: {info.get('library')} {info.get('version')}")
-        for case in load_cases(args.only):
+        for case in load_cases(args.only, args.pending):
             names = {"ns": f"tck.{case['id'].lower()}.{secrets.token_hex(3)}"}
             names["nsre"] = re.escape(names["ns"])
             case = substitute(case, names)
