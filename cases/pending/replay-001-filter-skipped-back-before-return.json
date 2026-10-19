@@ -1,0 +1,43 @@
+{
+  "id": "REPLAY-001",
+  "title": "a filtered replay returns only once every message it passed over is back on its queue",
+  "requirements": ["AMQP-REPLAY-001", "AMQP-REPLAY-002"],
+  "comment": [
+    ".NET ReplayAsync hands the passed-over messages back with basic.reject, which the broker never answers, and returns at once, so a PendingAsync() right after it can read 0 while the rejects are still in flight.",
+    "24 dead-lettered messages, every third one matched by the filter. The driver step is the replay call alone; the runner then reads the dead-letter queue with a basic.get through the management API (expect drain), which is exact at that moment, where the depth statistic would lag by up to a stats interval.",
+    "A passed-over message the library still holds is not ready and is not counted, so a replay that returned too early shows fewer than 16. The target queue then holds the 8 matched ones, each once."
+  ],
+  "steps": [
+    {"broker": "declareQueue", "queue": "${ns}.work"},
+    {"broker": "declareQueue", "queue": "${ns}.work.dlq"},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work.dlq", "body": {"id": "r01"}, "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "r01", "headers": {"x-acemq-id": "r01", "x-acemq-attempt": 3, "x-acemq-error": "handler failed"}}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work.dlq", "body": {"id": "r02"}, "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "r02", "headers": {"x-acemq-id": "r02", "x-acemq-attempt": 3, "x-acemq-error": "handler failed"}}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work.dlq", "body": {"id": "r03"}, "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "r03", "headers": {"x-acemq-id": "r03", "x-acemq-attempt": 3, "x-acemq-error": "handler failed"}}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work.dlq", "body": {"id": "r04"}, "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "r04", "headers": {"x-acemq-id": "r04", "x-acemq-attempt": 3, "x-acemq-error": "handler failed"}}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work.dlq", "body": {"id": "r05"}, "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "r05", "headers": {"x-acemq-id": "r05", "x-acemq-attempt": 3, "x-acemq-error": "handler failed"}}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work.dlq", "body": {"id": "r06"}, "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "r06", "headers": {"x-acemq-id": "r06", "x-acemq-attempt": 3, "x-acemq-error": "handler failed"}}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work.dlq", "body": {"id": "r07"}, "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "r07", "headers": {"x-acemq-id": "r07", "x-acemq-attempt": 3, "x-acemq-error": "handler failed"}}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work.dlq", "body": {"id": "r08"}, "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "r08", "headers": {"x-acemq-id": "r08", "x-acemq-attempt": 3, "x-acemq-error": "handler failed"}}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work.dlq", "body": {"id": "r09"}, "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "r09", "headers": {"x-acemq-id": "r09", "x-acemq-attempt": 3, "x-acemq-error": "handler failed"}}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work.dlq", "body": {"id": "r10"}, "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "r10", "headers": {"x-acemq-id": "r10", "x-acemq-attempt": 3, "x-acemq-error": "handler failed"}}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work.dlq", "body": {"id": "r11"}, "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "r11", "headers": {"x-acemq-id": "r11", "x-acemq-attempt": 3, "x-acemq-error": "handler failed"}}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work.dlq", "body": {"id": "r12"}, "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "r12", "headers": {"x-acemq-id": "r12", "x-acemq-attempt": 3, "x-acemq-error": "handler failed"}}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work.dlq", "body": {"id": "r13"}, "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "r13", "headers": {"x-acemq-id": "r13", "x-acemq-attempt": 3, "x-acemq-error": "handler failed"}}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work.dlq", "body": {"id": "r14"}, "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "r14", "headers": {"x-acemq-id": "r14", "x-acemq-attempt": 3, "x-acemq-error": "handler failed"}}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work.dlq", "body": {"id": "r15"}, "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "r15", "headers": {"x-acemq-id": "r15", "x-acemq-attempt": 3, "x-acemq-error": "handler failed"}}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work.dlq", "body": {"id": "r16"}, "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "r16", "headers": {"x-acemq-id": "r16", "x-acemq-attempt": 3, "x-acemq-error": "handler failed"}}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work.dlq", "body": {"id": "r17"}, "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "r17", "headers": {"x-acemq-id": "r17", "x-acemq-attempt": 3, "x-acemq-error": "handler failed"}}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work.dlq", "body": {"id": "r18"}, "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "r18", "headers": {"x-acemq-id": "r18", "x-acemq-attempt": 3, "x-acemq-error": "handler failed"}}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work.dlq", "body": {"id": "r19"}, "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "r19", "headers": {"x-acemq-id": "r19", "x-acemq-attempt": 3, "x-acemq-error": "handler failed"}}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work.dlq", "body": {"id": "r20"}, "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "r20", "headers": {"x-acemq-id": "r20", "x-acemq-attempt": 3, "x-acemq-error": "handler failed"}}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work.dlq", "body": {"id": "r21"}, "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "r21", "headers": {"x-acemq-id": "r21", "x-acemq-attempt": 3, "x-acemq-error": "handler failed"}}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work.dlq", "body": {"id": "r22"}, "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "r22", "headers": {"x-acemq-id": "r22", "x-acemq-attempt": 3, "x-acemq-error": "handler failed"}}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work.dlq", "body": {"id": "r23"}, "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "r23", "headers": {"x-acemq-id": "r23", "x-acemq-attempt": 3, "x-acemq-error": "handler failed"}}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work.dlq", "body": {"id": "r24"}, "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "r24", "headers": {"x-acemq-id": "r24", "x-acemq-attempt": 3, "x-acemq-error": "handler failed"}}},
+    {"comment": "the depth statistic, not the exact read: only to know all 24 are in before the replay", "expect": "depth", "queue": "${ns}.work.dlq", "count": 24, "withinMs": 10000},
+    {"driver": "replay", "from": "${ns}.work.dlq", "queue": "${ns}.work", "ids": ["r03", "r06", "r09", "r12", "r15", "r18", "r21", "r24"], "as": "replay"},
+    {"comment": "no wait: the passed-over 16 must be ready the moment replay returns", "expect": "drain", "queue": "${ns}.work.dlq", "match": {"count": 16, "ids": ["r01", "r02", "r04", "r05", "r07", "r08", "r10", "r11", "r13", "r14", "r16", "r17", "r19", "r20", "r22", "r23"]}},
+    {"expect": "step", "step": "replay", "match": {"ok": true, "result": {"replayed": 8}}},
+    {"expect": "drain", "queue": "${ns}.work", "match": {"count": 8, "ids": ["r03", "r06", "r09", "r12", "r15", "r18", "r21", "r24"]}}
+  ]
+}

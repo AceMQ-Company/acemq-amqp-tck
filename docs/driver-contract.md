@@ -62,6 +62,20 @@ in `hello` fails every case that uses it.
 | `readStream` | `queue`, `handle`, `offset` (`first` or `next`) | `{}` | read the stream through the library's stream reader with its default recovery; deliveries are counted under `handle` exactly like `consume`, and read back with `handled` |
 | `metrics` | — | `{"names": [...], "samples": [{"name", "tags"}]}` | every metric the library reported to its telemetry seam since `begin`, one sample per report, through a recorder the driver installs at `begin` |
 
+### Replay
+
+| op | arguments | result | what it does |
+|---|---|---|---|
+| `replay` | `from`, `queue`, `ids` | `{"replayed": n}` | one call of the library's replay with a filter, and nothing after it: take messages off `from` (a `{queue}.dlq` or `{queue}.parked` queue) and republish them to `queue` through the default exchange, with the library's default replay settings (attempts restarted, no limit, no deadline). The filter decodes the body as JSON and accepts a message exactly when `body.id` is one of `ids` (a list of strings); everything else is passed over. `replayed` is the number the library reports it moved. Answer as soon as the library's call returns — no sleep, no settle, no follow-up queue read — because the case checks the source queue the moment the answer arrives |
+
+`from` and `queue` are both given, so each library uses whichever its API
+takes: Java `mq.replay(queue)` (which drains `queue + ".dlq"`), .NET
+`mq.Replay(from)` (which derives `queue` from the suffix), Go
+`patterns.Replay(ctx, conn, ReplayFrom{Queue: from, Exchange: "", RoutingKey: queue, Filter: ...})`,
+Python `replay(connection, from, exchange="", routing_key=queue, only=...)`,
+Ruby `Patterns.replay(connection, from:, exchange: "", routing_key: queue) { ... }`.
+A library whose replay raises reports it as a failure with kind `other`.
+
 Arguments a driver does not recognise are ignored, so a case may add an
 optional argument without breaking older drivers; a new **op** is a new TCK
 minor version.

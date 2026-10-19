@@ -9,15 +9,18 @@ They are kept out of the default run, so that a tagged TCK is one every
 library passes, and run with `--pending`. A pending case moves into `cases/`
 — and the TCK takes a minor version — once all five pass it.
 
-None at the moment. RR-004 and TEL-001..003 moved into `cases/` in v0.2.0,
-once Java 0.7.15, Python 0.7.12, Ruby 0.7.14, .NET 0.7.13 and Go 0.9.9 passed
-them.
+| Case | Requirements | Divergence |
+|---|---|---|
+| REPLAY-001 | AMQP-REPLAY-001, AMQP-REPLAY-002 | .NET `ReplayAsync` hands passed-over messages back with an unanswered `basic.reject` and returns at once, so a depth read right after it can see 0. Needs the `replay` driver op in all five drivers |
+
+RR-004 and TEL-001..003 moved into `cases/` in v0.2.0, once Java 0.7.15,
+Python 0.7.12, Ruby 0.7.14, .NET 0.7.13 and Go 0.9.9 passed them.
 
 ## Requirements without a case
 
 | Requirement | Why not yet |
 |---|---|
-| AMQP-ENV-013 replay audit headers | needs a `replay` driver op |
+| AMQP-ENV-013 replay audit headers | the `replay` op exists (REPLAY-001); a case that reads a replayed message's headers is next |
 | AMQP-PUB-001 mandatory flag on on-behalf publishes | the flag is not broker-observable; PUB-001/PUB-002 check its consequence (nothing lost with confirms off) instead |
 | AMQP-PUB-003 unroutable user publish is an error | needs a `mandatory` argument on `publish`; Java and .NET report unroutable and nacked as one exception type, so drivers tell them apart by message text |
 | AMQP-STREAM-003 retry on a stream does not append | needs a failing handler on `readStream` |

@@ -107,7 +107,11 @@ One JSON file per case in `cases/`:
   its outcome for a later `expect: step`), `broker` (done by the runner:
   `declareQueue`, `declareExchange`, `bind`, `policy`, `clearPolicy`,
   `publish`, `respond`), `expect` (`message`, `depth`, `consumers`, `queue`,
-  `queueAbsent`, `noNewQueues`, `noMessagesIn`, `step`, `driver`) or `sleep`.
+  `queueAbsent`, `noNewQueues`, `noMessagesIn`, `step`, `driver`, `drain`) or
+  `sleep`. `drain` takes every ready message off a queue with a basic.get and
+  matches `{"count", "ids"}` (body ids, sorted): exact at that instant, where
+  `depth` reads a statistic that can be a stats interval old, so it is the one
+  for "right after the driver returned". It consumes, so it is never polled.
 - `${ns}` is a fresh namespace per run of a case (`tck.<case>.<random>`), and
   `${nsre}` the same escaped for a regular expression. Everything a case
   creates, and everything created on the broker while it ran, is deleted

@@ -32,6 +32,7 @@ behaviour is observable from outside the library, at least one case in
 | [05-request-reply.md](05-request-reply.md) | request/reply | `AMQP-RR` |
 | [06-streams.md](06-streams.md) | stream queues and readers | `AMQP-STREAM` |
 | [07-telemetry.md](07-telemetry.md) | metric names, tags and outcomes | `AMQP-TEL` |
+| [08-replay.md](08-replay.md) | taking dead-lettered messages back | `AMQP-REPLAY` |
 
 ## Terms
 

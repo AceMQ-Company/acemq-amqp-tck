@@ -143,6 +143,8 @@ def self_test():
     assert match([{"n": "a"}, {"n": "b", "t": 1}], {"$contains": [{"n": "b"}, "x"]})
     assert match([{"n": "a"}, {"n": "b", "t": 1}], {"$contains": [{"n": "b"}, {"n": "a"}]}) is None
     assert substitute({"q": "${ns}.x", "n": ["${ns}"]}, {"ns": "t"}) == {"q": "t.x", "n": ["t"]}
+    assert drained([{"body": {"id": "b"}}, {"body": {"id": "a"}}, {"body": {"id": "b"}}, {"body": "raw"}]) == \
+        {"count": 4, "ids": ["", "a", "b", "b"]}
     print("self-test: ok")
 
 
@@ -203,10 +205,18 @@ class Broker:
 
     def get(self, name):
         """Takes one message off a queue, or returns None."""
+        got = self.take(name, 1)
+        return got[0] if got else None
+
+    def take(self, name, count):
+        """Takes up to ``count`` ready messages off a queue, or returns None if
+        there is no such queue. A basic.get inside the broker, so unlike the
+        ``messages`` statistic it is exact at the moment it is asked: a message
+        a client still holds unacknowledged is not ready and is not returned."""
         got = self.api("POST", f"queues/{VHOST}/{q(name)}/get",
-                       {"count": 1, "ackmode": "ack_requeue_false", "encoding": "auto", "truncate": 1000000},
+                       {"count": count, "ackmode": "ack_requeue_false", "encoding": "auto", "truncate": 1000000},
                        missing_ok=True)
-        return normalise(got[0]) if got else None
+        return None if got is None else [normalise(m) for m in got]
 
     def publish(self, exchange, routing_key, body, properties=None):
         payload = body if isinstance(body, str) else json.dumps(body)
@@ -218,6 +228,13 @@ class Broker:
 
 def q(name):
     return urllib.parse.quote(name, safe="")
+
+
+def drained(messages):
+    """What an ``expect: drain`` matches: how many messages, and their body ids
+    sorted, so a duplicate or a missing one shows and arrival order does not."""
+    ids = sorted(str(m["body"].get("id")) if isinstance(m["body"], dict) else "" for m in messages)
+    return {"count": len(messages), "ids": ids}
 
 
 def normalise(raw):
@@ -506,6 +523,19 @@ class Run:
                 # Taken off the queue by looking at it, so polling again would
                 # report "no message" and hide what was wrong with this one.
                 raise CaseFailed(f"{problem}\n        message: {json.dumps(message)[:1500]}")
+            return None
+        if kind == "drain":
+            # Exact where `depth` is a statistic up to a stats interval old, so
+            # this is the one to use "immediately after" a driver step. It takes
+            # the messages off, so it is checked once and never polled.
+            messages = b.take(step["queue"], step.get("max", 1000))
+            if messages is None:
+                raise CaseFailed(f"queue {step['queue']} does not exist")
+            seen = drained(messages)
+            self.log(f"  drained: {json.dumps(seen)[:600]}")
+            problem = match(seen, step["match"], where=f"drain of {step['queue']}")
+            if problem:
+                raise CaseFailed(problem)
             return None
         if kind == "depth":
             info = b.queue(step["queue"])
