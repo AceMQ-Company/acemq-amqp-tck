@@ -121,7 +121,8 @@ with the library's topology helpers, never with raw channel calls.
 
 Arguments a driver does not recognise are ignored, so a case may add an
 optional argument without breaking older drivers; a new **op** is a new TCK
-minor version. A case whose outcome depends on an argument (`mandatory`,
+release, on the 0.3.x line like every other change, and its cases start in
+`cases/pending/` until every driver answers it. A case whose outcome depends on an argument (`mandatory`,
 `idempotent`, `consume` without `retry`, `readStream` with `behaviour`) fails
 on a driver that ignores it, which is one reason such a case starts in
 `cases/pending/`.
