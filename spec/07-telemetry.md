@@ -4,7 +4,7 @@ The reference is `org.acemq.amqp.api.MetricNames` in `acemq-java-amqp`.
 
 ### AMQP-TEL-001 (MUST) Metric names
 
-Cases: TEL-001 (pending)
+Cases: TEL-001
 
 | Name | Kind |
 |---|---|
@@ -31,14 +31,14 @@ telemetry seam.
 
 ### AMQP-TEL-002 (MUST) Tag names
 
-Cases: TEL-001 (pending)
+Cases: TEL-001
 
 `exchange`, `routing.key`, `queue`, `transport`, `message.type`, `target`,
 `rung`, `outcome`, `pipeline`, `step`.
 
 ### AMQP-TEL-003 (MUST) Publish outcomes: `confirmed`, `unroutable`, `refused`, `failed`
 
-Cases: TEL-001, TEL-002, TEL-003 (pending)
+Cases: TEL-001, TEL-002, TEL-003
 
 `refused` is a publish the library declined to send — nothing was written,
 so nothing can have been lost: publishing paused by a blocked broker. `failed`
@@ -48,7 +48,7 @@ possible data loss. (The reference is `MetricNames.OUTCOME_REFUSED` in Java.)
 
 ### AMQP-TEL-004 (MUST) Consume outcomes
 
-Cases: TEL-001 (pending)
+Cases: TEL-001
 
 `acked`, `retried`, `dead_lettered`, `parked`, `rejected`, `in_progress`.
 Request outcomes: `answered`, `timed_out`.

@@ -2,11 +2,17 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-20
+
 - `spec/08-replay.md`: AMQP-REPLAY-001 (a filtered replay returns only once
   every message it passed over is back on its queue) and AMQP-REPLAY-002 (a
   matched message is replayed exactly once).
-- Pending: REPLAY-001 (`cases/pending/replay-001-filter-skipped-back-before-return.json`)
-  — .NET `ReplayAsync` returns before the passed-over messages are back.
+- REPLAY-001 (`cases/replay-001-filter-skipped-back-before-return.json`) is
+  in the default run (20 cases). Every library passes it: Java 0.7.16, Python
+  0.7.13, Ruby 0.7.15, .NET 0.7.14 and Go 0.9.10 — each returns from a
+  filtered replay only once the passed-over messages are back on the queue.
+- `spec/`: the "(pending)" markers left on RR-004 and TEL-001..003 after they
+  moved into the default run in 0.2.0 are gone.
 - Driver op `replay` (`from`, `queue`, `ids` -> `{"replayed"}`); see
   docs/driver-contract.md.
 - Runner: `expect: drain`, an exact read of a queue's ready messages

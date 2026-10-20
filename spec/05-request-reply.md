@@ -33,7 +33,7 @@ where it was published.
 
 ### AMQP-RR-005 (MUST) A responder failure is raised as a responder error
 
-Cases: RR-004 (pending)
+Cases: RR-004
 
 A reply carrying the `acemq-error` header (the shared, unreserved namespace,
 so that a responder in any language can set it) is raised as the responder's

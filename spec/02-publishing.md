@@ -29,7 +29,7 @@ it was unroutable, distinguishable from a refusal.
 
 ### AMQP-PUB-004 (MUST) Back pressure is distinguishable from a publish that may be lost
 
-Cases: TEL-002, TEL-003 (pending)
+Cases: TEL-002, TEL-003
 
 A publish the library declines to send because the broker is blocking
 publishers (a resource alarm) raises an error that says nothing was sent,
@@ -38,7 +38,7 @@ message it was given. See also AMQP-TEL-003.
 
 ### AMQP-PUB-005 (MUST) A publish into a blocked broker is bounded
 
-Cases: TEL-003 (pending)
+Cases: TEL-003
 
 A publish that is waiting on a broker which has blocked publishers (a resource
 alarm) fails within the library's blocked timeout rather than waiting for the

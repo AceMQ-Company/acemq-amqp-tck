@@ -9,12 +9,9 @@ They are kept out of the default run, so that a tagged TCK is one every
 library passes, and run with `--pending`. A pending case moves into `cases/`
 — and the TCK takes a minor version — once all five pass it.
 
-| Case | Requirements | Divergence |
-|---|---|---|
-| REPLAY-001 | AMQP-REPLAY-001, AMQP-REPLAY-002 | .NET `ReplayAsync` hands passed-over messages back with an unanswered `basic.reject` and returns at once, so a depth read right after it can see 0. Needs the `replay` driver op in all five drivers |
-
-RR-004 and TEL-001..003 moved into `cases/` in v0.2.0, once Java 0.7.15,
-Python 0.7.12, Ruby 0.7.14, .NET 0.7.13 and Go 0.9.9 passed them.
+None at the moment. REPLAY-001 moved into `cases/` in v0.3.0, once Java
+0.7.16, Python 0.7.13, Ruby 0.7.15, .NET 0.7.14 and Go 0.9.10 passed it;
+RR-004 and TEL-001..003 moved in v0.2.0.
 
 ## Requirements without a case
 
