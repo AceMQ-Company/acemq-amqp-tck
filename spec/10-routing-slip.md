@@ -42,3 +42,16 @@ Cases: SLIP-001, SLIP-002
 The message a step publishes carries the correlation of the one it handled,
 `x-acemq-causation` set (to the handled message's id), and the slip in the
 form it arrived in: a route arrives as a route and leaves as one.
+
+### AMQP-SLIP-004 (MUST) A failing step with no retry policy makes one attempt
+
+Cases: SLIP-003 (pending)
+
+AMQP-RETRY-008 for a pipeline step. A step whose own handler fails, in a
+pipeline where no retry policy is configured for that step or the pipeline,
+is attempted once: the message is dead-lettered to `{pipeline}.{step}.dlq` as
+in AMQP-RETRY-005, with `x-acemq-attempt` 1, every header it arrived with
+kept (the route headers and AMQP-ENV-014 included), and the handler is not
+called for it again. Nothing is published to the next step. A retry delay the
+pipeline applies by default is not a retry policy: retrying for ever, in the
+consumer or by republishing to the step's queue, is not a default.

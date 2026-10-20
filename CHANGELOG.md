@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+- Spec: AMQP-SLIP-004 (a pipeline step whose own handler fails, in a pipeline
+  with no retry policy, is attempted once and dead-lettered to
+  `{pipeline}.{step}.dlq` with every header kept: AMQP-RETRY-008 for pipeline
+  steps).
+- SLIP-003 (`cases/pending/slip-003-failing-step-no-policy-one-attempt.json`),
+  pending: suspected to fail on .NET, whose pipeline step retries every 5s for
+  ever when no policy is configured.
+- Driver op `pipeline` takes an optional `behaviour`, a map from step name to
+  `consume`'s behaviour (`failFirst`, `sleepMs`); see docs/driver-contract.md.
+
 ## [0.3.1] - 2026-10-20
 
 - PARK-001, PARK-002, RETRY-004, REPLAY-002, PUB-003, STREAM-003, IDEM-001,

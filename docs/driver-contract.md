@@ -105,7 +105,7 @@ No `key` argument: the case is about each library's default key.
 
 | op | arguments | result | what it does |
 |---|---|---|---|
-| `pipeline` | `name`, `steps` (step names, in order), `handle` | `{}` | declare and start a pipeline named `name` with those steps: a direct exchange `name`, a queue `{name}.{step}` bound with the step's name, a consumer on each, following the slip each message carries. Every step's handler is the identity on the JSON body: it counts `body.id` under `handle` (read back with `handled`) and returns the body unchanged, so the message goes wherever its slip says next. The driver publishes nothing; the runner sends messages in, with a slip of either form already written |
+| `pipeline` | `name`, `steps` (step names, in order), `handle`, `behaviour`? | `{}` | declare and start a pipeline named `name` with those steps: a direct exchange `name`, a queue `{name}.{step}` bound with the step's name, a consumer on each, following the slip each message carries. Every step's handler is the identity on the JSON body: it counts `body.id` under `handle` (read back with `handled`) and returns the body unchanged, so the message goes wherever its slip says next. `behaviour` maps a step name to `consume`'s behaviour (`{failFirst: {id: n}, sleepMs}`): that step's handler counts the delivery, sleeps `sleepMs`, and fails with the library's ordinary retryable failure (throw, raise, return an error) for the first `n` deliveries of an id in `failFirst`; a step not named in it is the identity. No retry policy is configured on any step or on the pipeline: each step is exactly what the library builds when the caller configures none. The driver publishes nothing; the runner sends messages in, with a slip of either form already written |
 
 Java `mq.pipeline(name, JsonNode.class).step(s, JsonNode.class, identity)...build()`
 (`AceMq.pipeline`, `PipelineBuilder.step`, `PipelineBuilder.build`), .NET
@@ -119,11 +119,20 @@ exchange, queues and bindings through its topology helpers and, on each
 Whatever the library's pipeline does not declare itself, the driver declares
 with the library's topology helpers, never with raw channel calls.
 
+A failing step under `behaviour` fails inside the step's own handler, the
+function the driver passes to the library, never in a wrapper around the
+library's step: Java's `Step` throws, .NET's step delegate throws, Go's step
+function returns an error, Ruby's `follow` block raises, Python's stage raises
+inside `follow_slip`. The driver calls nothing that sets a retry policy: no
+`PipelineBuilder.withRetry` (Java), `WithRetry` or `WithRetryDelay` (.NET),
+`StepRetry` (Go), `retry_policy:` (Ruby) or `retry=` (Python), and no
+connection-wide default either.
+
 Arguments a driver does not recognise are ignored, so a case may add an
 optional argument without breaking older drivers; a new **op** is a new TCK
 release, on the 0.3.x line like every other change, and its cases start in
 `cases/pending/` until every driver answers it. A case whose outcome depends on an argument (`mandatory`,
-`idempotent`, `consume` without `retry`, `readStream` with `behaviour`) fails
+`idempotent`, `consume` without `retry`, `readStream` with `behaviour`, `pipeline` with `behaviour`) fails
 on a driver that ignores it, which is one reason such a case starts in
 `cases/pending/`.
 

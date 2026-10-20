@@ -9,7 +9,15 @@ They are kept out of the default run, so that a tagged TCK is one every
 library passes, and run with `--pending`. A pending case moves into `cases/`
 — and the TCK takes a new version — once all five pass it.
 
-None at the moment. The R6 set — PARK-001, PARK-002, RETRY-004, REPLAY-002,
+One, written from reading the five libraries' code at Java 0.7.17, .NET
+0.7.15, Python 0.7.14, Ruby 0.7.16 and Go 0.9.11, not from a run:
+"suspected" is what the code says each library does.
+
+| Case | Asserts | Needs in the drivers | Suspected to diverge |
+|---|---|---|---|
+| SLIP-003 | a pipeline step whose own handler fails, with no retry policy, is attempted once and dead-lettered to `{pipeline}.{step}.dlq` with every header kept (AMQP-SLIP-004, the AMQP-RETRY-008 rule for pipeline steps) | `pipeline` `behaviour` | .NET (the step answers `Ack.Retry` with the pipeline's 5s retry delay, which with no policy is waited out and republished to the step queue for ever); Java, Python, Ruby and Go dead-letter once |
+
+The R6 set — PARK-001, PARK-002, RETRY-004, REPLAY-002,
 PUB-003, STREAM-003, IDEM-001, SLIP-001 and SLIP-002 — moved into `cases/` in
 v0.3.1, once Java 0.7.17, .NET 0.7.15, Python 0.7.14, Ruby 0.7.16 and Go
 0.9.11 passed them; REPLAY-001 moved in v0.3.0, RR-004 and TEL-001..003 in
