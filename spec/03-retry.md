@@ -50,7 +50,7 @@ in `x-acemq-error`.
 
 ### AMQP-RETRY-006 (MUST) A body that cannot be decoded is parked once, unchanged
 
-Cases: PARK-001 (pending)
+Cases: PARK-001
 
 A delivery the consumer's codec cannot decode is not given to the handler. It
 is published once to `{queue}.parked` through the default exchange with the
@@ -61,7 +61,7 @@ the broker confirmed and routed the parked copy.
 
 ### AMQP-RETRY-007 (MUST) A park the broker does not take loses nothing
 
-Cases: PARK-002 (pending)
+Cases: PARK-002
 
 AMQP-PUB-002 for the park: when the publish to `{queue}.parked` is refused,
 nacked or returned, the delivery is requeued, never rejected without requeue
@@ -69,7 +69,7 @@ nacked or returned, the delivery is requeued, never rejected without requeue
 
 ### AMQP-RETRY-008 (MUST) A consumer given no retry policy makes one attempt
 
-Cases: RETRY-004 (pending)
+Cases: RETRY-004
 
 A consumer started without a retry policy treats a handler failure as
 exhausted after the first attempt: the message is dead-lettered to

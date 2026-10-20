@@ -19,14 +19,14 @@ declaration as inequivalent.
 
 ### AMQP-STREAM-003 (MUST NOT) Retry on a stream appends to the stream
 
-Cases: STREAM-003 (pending)
+Cases: STREAM-003
 
 A handler failure on a stream reader never publishes a copy of the message
 back into the stream, which every other reader of that stream would then read.
 
 ### AMQP-STREAM-004 (MUST) A failing handler stops a stream reader at that message
 
-Cases: STREAM-003 (pending)
+Cases: STREAM-003
 
 By default, a handler failure on a stream reader stops the reader: the
 subscription is closed, nothing after the failed message is handled, and no

@@ -22,7 +22,7 @@ requeue to a place nothing reads.
 
 ### AMQP-PUB-003 (MUST) An unroutable user publish is an error
 
-Cases: PUB-003 (pending)
+Cases: PUB-003
 
 A mandatory publish the broker returns raises (or returns) an error that says
 it was unroutable, distinguishable from a refusal (a `basic.nack`). The distinction SHOULD be
@@ -50,7 +50,7 @@ library knew and did not write it.
 
 ### AMQP-PUB-006 (MUST) A user publish is mandatory unless the caller opts out
 
-Cases: PUB-003 (pending)
+Cases: PUB-003
 
 A publish made with the library's default settings sets `mandatory`, so a
 message the broker can route nowhere is an error (AMQP-PUB-003) rather than a

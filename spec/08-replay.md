@@ -27,7 +27,7 @@ reports how many it moved.
 
 ### AMQP-REPLAY-003 (MUST) A replay restarts the attempt and clears the error, and nothing else
 
-Cases: REPLAY-002 (pending)
+Cases: REPLAY-002
 
 With the default settings (attempts restarted), the replayed message carries
 `x-acemq-attempt` 1 and no `x-acemq-error`; `acemq-replay-count` is one more

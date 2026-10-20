@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-20
+
+- PARK-001, PARK-002, RETRY-004, REPLAY-002, PUB-003, STREAM-003, IDEM-001,
+  SLIP-001 and SLIP-002 are in the default run (29 cases). Every library
+  passes them: Java 0.7.17, .NET 0.7.15, Python 0.7.14, Ruby 0.7.16 and Go
+  0.9.11. `spec/` drops their "(pending)" markers.
 - Spec: AMQP-ENV-014 (an unknown `x-acemq-` header survives every on-behalf
   republish), AMQP-PUB-006 (a user publish is mandatory unless the caller opts
   out), AMQP-RETRY-006..008 (an undecodable body is parked once and unchanged;
@@ -11,11 +17,7 @@
   `spec/09-idempotency.md` (AMQP-IDEM-001..002) and
   `spec/10-routing-slip.md` (AMQP-SLIP-001..003). AMQP-PUB-003 adds that the
   unroutable/nacked distinction should be part of the API (a SHOULD).
-- Pending cases (`cases/pending/`, written from reading the five libraries'
-  code; see ROADMAP.md for the divergence each one is expected to show):
-  PARK-001, PARK-002, RETRY-004, REPLAY-002, PUB-003, STREAM-003, IDEM-001,
-  SLIP-001, SLIP-002. AMQP-ENV-013, AMQP-PUB-003 and AMQP-STREAM-003 now have
-  cases.
+- AMQP-ENV-013, AMQP-PUB-003 and AMQP-STREAM-003 now have cases.
 - Driver op `pipeline` (`name`, `steps`, `handle` -> `{}`); arguments
   `publish.mandatory`, `consume.idempotent`, `readStream.behaviour`, and
   `consume` without `retry` (no retry policy). See docs/driver-contract.md.

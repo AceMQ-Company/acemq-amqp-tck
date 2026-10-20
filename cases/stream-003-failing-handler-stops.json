@@ -3,7 +3,7 @@
   "title": "a failing handler stops a stream reader at that message, copies it nowhere, and appends nothing to the stream",
   "requirements": ["AMQP-STREAM-003", "AMQP-STREAM-004"],
   "comment": [
-    "From the code: Java (OnFailure.STOP) and .NET stop the reader; Python and Ruby dead-letter the message to {stream}.dlq and carry on; Go parks it to {stream}.parked and carries on. Go and Python used to append a copy to the stream (fixed before 0.6.0); the second reader is what would see it.",
+    "Java (OnFailure.STOP) and .NET stop the reader. Before Python 0.7.14, Ruby 0.7.16 and Go 0.9.11, Python and Ruby dead-lettered the message to {stream}.dlq and carried on; Go parked it to {stream}.parked and carried on. Go and Python used to append a copy to the stream (fixed before 0.6.0); the second reader is what would see it.",
     "s-2 fails every time. A stopped reader has handled s-1 and s-2 once each and never s-3."
   ],
   "steps": [

@@ -3,7 +3,7 @@
   "title": "a user publish the broker cannot route is an unroutable error, by default and when asked for, and a nack is not",
   "requirements": ["AMQP-PUB-003", "AMQP-PUB-004", "AMQP-PUB-006"],
   "comment": [
-    "Java and .NET publish mandatory by default; Python, Ruby and Go only with mandatory set, so the last publish (no mandatory argument) succeeds silently there.",
+    "Java and .NET always published mandatory by default; Python, Ruby and Go only with mandatory set before Python 0.7.14, Ruby 0.7.16 and Go 0.9.11, so the last publish (no mandatory argument) succeeded silently there.",
     "Java and .NET throw one exception type for unroutable and nacked and drivers tell them apart by message text; AMQP-PUB-003 asks for a type, flag or field. The broker cannot see that, so the case checks the kinds only."
   ],
   "steps": [

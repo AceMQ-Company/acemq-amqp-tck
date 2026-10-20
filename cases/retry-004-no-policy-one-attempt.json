@@ -3,8 +3,8 @@
   "title": "a consumer given no retry policy dead-letters a failure after one attempt, keeping every header",
   "requirements": ["AMQP-RETRY-008", "AMQP-RETRY-005", "AMQP-ENV-014"],
   "comment": [
-    "consume without a retry argument: the library's consumer with no retry policy configured. Java (RetryPolicy.none()), Python (no_retry()) and Ruby (RetryPolicy.none) dead-letter after one attempt. .NET waits 5s and republishes to the source queue for ever (Ack.Retry with no policy); Go republishes to the source queue at once with attempt+1, without limit, under its zero policy.",
-    "x-acemq-future is AMQP-ENV-014: Python, Ruby and Go rebuild the dead-lettered message's headers from their envelope fields."
+    "consume without a retry argument: the library's consumer with no retry policy configured. Java (RetryPolicy.none()), Python (no_retry()) and Ruby (RetryPolicy.none) dead-letter after one attempt. Before .NET 0.7.15 and Go 0.9.11: .NET waited 5s and republished to the source queue for ever (Ack.Retry with no policy); Go republished to the source queue at once with attempt+1, without limit, under its zero policy.",
+    "x-acemq-future is AMQP-ENV-014: Python, Ruby and Go rebuilt the dead-lettered message's headers from their envelope fields before Python 0.7.14, Ruby 0.7.16 and Go 0.9.11."
   ],
   "steps": [
     {"driver": "consume", "queue": "${ns}.work", "handle": "c1", "prefetch": 10,

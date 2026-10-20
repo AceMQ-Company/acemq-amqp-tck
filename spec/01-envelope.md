@@ -93,7 +93,7 @@ Cases: ENV-001, ENV-002
 
 ### AMQP-ENV-013 (MUST) A replayed message carries the replay audit headers
 
-Cases: REPLAY-002 (pending)
+Cases: REPLAY-002
 
 `acemq-replay-count`, `acemq-replayed-at` (ISO-8601 UTC, millisecond
 precision) and `acemq-replayed-from` (the queue it was taken from), as in the
@@ -101,7 +101,7 @@ precision) and `acemq-replayed-from` (the queue it was taken from), as in the
 
 ### AMQP-ENV-014 (MUST) An `x-acemq-` header the library does not know survives every on-behalf republish
 
-Cases: PARK-001 (pending), RETRY-004 (pending), REPLAY-002 (pending)
+Cases: PARK-001, RETRY-004, REPLAY-002
 
 A retry hop, a dead-letter, a park and a replay republish a message the
 library did not write, possibly one written by a newer version of another

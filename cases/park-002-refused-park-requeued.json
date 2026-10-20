@@ -3,7 +3,7 @@
   "title": "a park the broker refuses requeues the delivery, and it is parked once the broker takes it",
   "requirements": ["AMQP-RETRY-007", "AMQP-PUB-002"],
   "comment": [
-    "Python and Ruby nack the delivery without requeue when the park publish fails: the message is dropped, or dead-lettered by the broker if the source queue has a dead-letter exchange. Java rejects with requeue, Go nacks with requeue, .NET releases it.",
+    "Before Python 0.7.14 and Ruby 0.7.16, both nacked the delivery without requeue when the park publish failed: the message was dropped, or dead-lettered by the broker if the source queue had a dead-letter exchange. Java rejects with requeue, Go nacks with requeue, .NET releases it.",
     "The broker refuses the park through a reject-publish policy on {queue}.parked. A quorum parked queue admits one message into an empty queue at a limit of zero, so on a library whose parked queue is quorum the case is weaker (see ROADMAP, Quorum rungs)."
   ],
   "steps": [

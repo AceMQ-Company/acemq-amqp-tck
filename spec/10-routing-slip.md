@@ -7,7 +7,7 @@ continue a route written in another. It has two forms.
 
 ### AMQP-SLIP-001 (MUST) The route form
 
-Cases: SLIP-001 (pending)
+Cases: SLIP-001
 
 A pipeline `{pipeline}` is a direct exchange of that name and a queue
 `{pipeline}.{step}` per step, bound with the step's name. The route travels in
@@ -25,7 +25,7 @@ publishes nothing.
 
 ### AMQP-SLIP-002 (MUST) The itinerary form
 
-Cases: SLIP-002 (pending)
+Cases: SLIP-002
 
 `acemq-routing-slip` is a JSON string
 `{"steps": [{"exchange", "routingKey", "name"?}, ...], "done": [...]}`.
@@ -37,7 +37,7 @@ followed.
 
 ### AMQP-SLIP-003 (MUST) A hop keeps the correlation and the form
 
-Cases: SLIP-001 (pending), SLIP-002 (pending)
+Cases: SLIP-001, SLIP-002
 
 The message a step publishes carries the correlation of the one it handled,
 `x-acemq-causation` set (to the handled message's id), and the slip in the

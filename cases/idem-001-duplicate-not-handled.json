@@ -3,7 +3,7 @@
   "title": "an idempotent consumer handles a message id once, keyed by x-acemq-id or, without it, by message_id",
   "requirements": ["AMQP-IDEM-001", "AMQP-IDEM-002"],
   "comment": [
-    "d-1 carries x-acemq-id; d-2 is what a non-AceMQ publisher sends, message_id and no envelope headers. Java, .NET and Go fall back to message_id; Python and Ruby generate a fresh id for a message without x-acemq-id, so both copies of d-2 are handled.",
+    "d-1 carries x-acemq-id; d-2 is what a non-AceMQ publisher sends, message_id and no envelope headers. Java, .NET and Go fall back to message_id. Before 0.7.14 (Python) and 0.7.16 (Ruby), Python and Ruby generated a fresh id for a message without x-acemq-id, so both copies of d-2 were handled.",
     "Each copy is published after the previous one was handled, so the duplicate meets a confirmed claim, not one in progress."
   ],
   "steps": [

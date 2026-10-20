@@ -2,7 +2,7 @@ name: AceMQ AMQP TCK
 description: >
   Starts a RabbitMQ with the management plugin, runs every TCK case through the
   given driver, and fails the job if any case fails. The version of the TCK is
-  the ref this action is used at: AceMQ-Company/acemq-amqp-tck@v0.3.0.
+  the ref this action is used at: AceMQ-Company/acemq-amqp-tck@v0.3.1.
 
 inputs:
   driver:

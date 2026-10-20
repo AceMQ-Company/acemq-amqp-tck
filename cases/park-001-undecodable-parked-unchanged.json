@@ -3,7 +3,7 @@
   "title": "a body that cannot be decoded is parked once, never handled, with every header it arrived with",
   "requirements": ["AMQP-RETRY-006", "AMQP-RETRY-004", "AMQP-ENV-014"],
   "comment": [
-    "Java and .NET copy the delivery's headers and add x-acemq-error; Python, Ruby and Go rebuild the headers from their own envelope fields, which drops an x-acemq- header they have no field for (x-acemq-future here).",
+    "Java and .NET copy the delivery's headers and add x-acemq-error. Before Python 0.7.14, Ruby 0.7.16 and Go 0.9.11, those three rebuilt the headers from their own envelope fields, which dropped an x-acemq- header they had no field for (x-acemq-future here).",
     "The message is published by the runner, as a non-AceMQ or newer-version publisher would: body bytes that are not JSON under content_type application/json, and a full envelope with attempt 2."
   ],
   "steps": [
