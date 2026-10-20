@@ -118,7 +118,8 @@ One JSON file per case in `cases/`:
   after it.
 - `match` is a subset match with a few operators: `$regex`, `$type`, `$gt`,
   `$gte`, `$lt`, `$lte`, `$sameAs` (another field of the same message),
-  `$absent`, `$oneOf`.
+  `$absent`, `$oneOf`, `$contains`, `$json` (a string that parses as JSON
+  matching the pattern, for `acemq-routing-slip`).
 - `expect` with `withinMs` polls until it holds or the time is up — the only
   way a timing-dependent outcome is asserted.
 

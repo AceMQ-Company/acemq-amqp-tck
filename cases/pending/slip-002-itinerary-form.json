@@ -1,0 +1,32 @@
+{
+  "id": "SLIP-002",
+  "title": "an itinerary written by someone else is followed to a destination outside the pipeline, with done recorded",
+  "requirements": ["AMQP-SLIP-002", "AMQP-SLIP-003"],
+  "comment": [
+    "The itinerary enters step a and sends it through b to the runner's own queue, which is no pipeline step: the itinerary names exchanges and routing keys, not steps.",
+    "All five read and write this form; completedAt is only checked to be a string (Java writes whole seconds, Go RFC 3339)."
+  ],
+  "steps": [
+    {"driver": "pipeline", "name": "${ns}.p", "steps": ["a", "b", "c"], "handle": "s1"},
+    {"expect": "consumers", "queue": "${ns}.p.a", "count": 1, "withinMs": 15000},
+    {"expect": "consumers", "queue": "${ns}.p.b", "count": 1, "withinMs": 15000},
+    {"broker": "declareQueue", "queue": "${ns}.tap"},
+    {"broker": "publish", "exchange": "${ns}.p", "routingKey": "a", "body": {"id": "p-2"},
+     "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "p-2",
+       "headers": {"x-acemq-id": "p-2", "x-acemq-attempt": 1, "x-acemq-correlation": "corr-itin",
+         "acemq-routing-slip": "{\"steps\":[{\"exchange\":\"${ns}.p\",\"routingKey\":\"a\",\"name\":\"a\"},{\"exchange\":\"${ns}.p\",\"routingKey\":\"b\",\"name\":\"b\"},{\"exchange\":\"\",\"routingKey\":\"${ns}.tap\",\"name\":\"tap\"}]}"}}},
+    {"expect": "message", "queue": "${ns}.tap", "withinMs": 15000, "match": {
+      "body": {"id": "p-2"},
+      "headers": {
+        "acemq-routing-slip": {"$json": {
+          "steps": [{"exchange": "", "routingKey": "${ns}.tap"}],
+          "done": [{"exchange": "${ns}.p", "routingKey": "a", "completedAt": {"$type": "string"}},
+                   {"exchange": "${ns}.p", "routingKey": "b", "completedAt": {"$type": "string"}}]}},
+        "x-acemq-correlation": "corr-itin", "x-acemq-causation": {"$type": "string", "$regex": "."},
+        "x-acemq-route": {"$absent": true}}
+    }},
+    {"sleep": 2000},
+    {"comment": "a and b, never c", "expect": "driver", "call": {"op": "handled", "handle": "s1"}, "match": {"counts": {"p-2": 2}}},
+    {"expect": "noMessagesIn", "pattern": "^${nsre}\\.p\\..*\\.(dlq|parked)$"}
+  ]
+}

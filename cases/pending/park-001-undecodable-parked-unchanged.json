@@ -1,0 +1,36 @@
+{
+  "id": "PARK-001",
+  "title": "a body that cannot be decoded is parked once, never handled, with every header it arrived with",
+  "requirements": ["AMQP-RETRY-006", "AMQP-RETRY-004", "AMQP-ENV-014"],
+  "comment": [
+    "Java and .NET copy the delivery's headers and add x-acemq-error; Python, Ruby and Go rebuild the headers from their own envelope fields, which drops an x-acemq- header they have no field for (x-acemq-future here).",
+    "The message is published by the runner, as a non-AceMQ or newer-version publisher would: body bytes that are not JSON under content_type application/json, and a full envelope with attempt 2."
+  ],
+  "steps": [
+    {"driver": "consume", "queue": "${ns}.work", "handle": "c1", "prefetch": 10,
+     "retry": {"maxAttempts": 3, "delayMs": 300}, "behaviour": {}},
+    {"expect": "consumers", "queue": "${ns}.work", "count": 1, "withinMs": 10000},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work", "body": "not json{",
+     "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "bad-1",
+       "headers": {"x-acemq-id": "bad-1", "x-acemq-type": "order.placed", "x-acemq-version": 2,
+         "x-acemq-correlation": "corr-p1", "x-acemq-causation": "cause-p1", "x-acemq-attempt": 2,
+         "x-acemq-first-seen": 1767323045678, "x-acemq-origin": "orders@host-7",
+         "x-acemq-future": "kept", "x-tenant": "acme"}}},
+    {"expect": "message", "queue": "${ns}.work.parked", "withinMs": 15000, "match": {
+      "body": "not json{",
+      "properties": {"content_type": "application/json", "message_id": "bad-1"},
+      "headers": {
+        "x-acemq-id": "bad-1", "x-acemq-type": "order.placed", "x-acemq-version": 2,
+        "x-acemq-correlation": "corr-p1", "x-acemq-causation": "cause-p1", "x-acemq-attempt": 2,
+        "x-acemq-first-seen": 1767323045678, "x-acemq-origin": "orders@host-7",
+        "x-acemq-future": "kept", "x-tenant": "acme",
+        "x-acemq-error": {"$type": "string", "$regex": "."}
+      }
+    }},
+    {"sleep": 2000},
+    {"comment": "parked exactly once", "expect": "drain", "queue": "${ns}.work.parked", "match": {"count": 0}},
+    {"expect": "depth", "queue": "${ns}.work", "count": 0, "withinMs": 5000},
+    {"expect": "noMessagesIn", "pattern": "^${nsre}\\.work\\.dlq$"},
+    {"comment": "the handler never saw it", "expect": "driver", "call": {"op": "handled", "handle": "c1"}, "match": {"order": []}}
+  ]
+}

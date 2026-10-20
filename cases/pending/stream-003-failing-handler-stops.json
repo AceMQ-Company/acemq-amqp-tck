@@ -1,0 +1,28 @@
+{
+  "id": "STREAM-003",
+  "title": "a failing handler stops a stream reader at that message, copies it nowhere, and appends nothing to the stream",
+  "requirements": ["AMQP-STREAM-003", "AMQP-STREAM-004"],
+  "comment": [
+    "From the code: Java (OnFailure.STOP) and .NET stop the reader; Python and Ruby dead-letter the message to {stream}.dlq and carry on; Go parks it to {stream}.parked and carries on. Go and Python used to append a copy to the stream (fixed before 0.6.0); the second reader is what would see it.",
+    "s-2 fails every time. A stopped reader has handled s-1 and s-2 once each and never s-3."
+  ],
+  "steps": [
+    {"driver": "declareStream", "queue": "${ns}.log", "maxAgeMs": 3600000},
+    {"driver": "readStream", "queue": "${ns}.log", "handle": "r1", "offset": "first",
+     "behaviour": {"failFirst": {"s-2": 1000}}},
+    {"expect": "consumers", "queue": "${ns}.log", "count": 1, "withinMs": 10000},
+    {"broker": "publish", "routingKey": "${ns}.log", "body": {"id": "s-1"}},
+    {"broker": "publish", "routingKey": "${ns}.log", "body": {"id": "s-2"}},
+    {"broker": "publish", "routingKey": "${ns}.log", "body": {"id": "s-3"}},
+    {"expect": "consumers", "queue": "${ns}.log", "count": 0, "withinMs": 15000},
+    {"sleep": 2000},
+    {"expect": "driver", "call": {"op": "handled", "handle": "r1"}, "match": {"order": ["s-1", "s-2"]}},
+    {"expect": "noMessagesIn", "pattern": "^${nsre}\\.log\\.(dlq|parked)$"},
+    {"driver": "readStream", "queue": "${ns}.log", "handle": "r2", "offset": "first"},
+    {"expect": "driver", "call": {"op": "handled", "handle": "r2"}, "withinMs": 15000,
+     "match": {"order": ["s-1", "s-2", "s-3"]}},
+    {"sleep": 2000},
+    {"comment": "nothing was appended", "expect": "driver", "call": {"op": "handled", "handle": "r2"},
+     "match": {"order": ["s-1", "s-2", "s-3"]}}
+  ]
+}

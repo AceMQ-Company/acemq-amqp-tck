@@ -47,3 +47,32 @@ Cases: RETRY-002
 The message in `{queue}.dlq` carries the attempt it failed on, every
 envelope and application header it arrived with, and the reason as a string
 in `x-acemq-error`.
+
+### AMQP-RETRY-006 (MUST) A body that cannot be decoded is parked once, unchanged
+
+Cases: PARK-001 (pending)
+
+A delivery the consumer's codec cannot decode is not given to the handler. It
+is published once to `{queue}.parked` through the default exchange with the
+same body bytes, `content_type` and `message_id`, every header it arrived with
+unchanged — `x-acemq-attempt` included, and see AMQP-ENV-014 — and the reason
+as a string in `x-acemq-error`. The source delivery is acknowledged only after
+the broker confirmed and routed the parked copy.
+
+### AMQP-RETRY-007 (MUST) A park the broker does not take loses nothing
+
+Cases: PARK-002 (pending)
+
+AMQP-PUB-002 for the park: when the publish to `{queue}.parked` is refused,
+nacked or returned, the delivery is requeued, never rejected without requeue
+(which drops it, or dead-letters it somewhere it does not belong).
+
+### AMQP-RETRY-008 (MUST) A consumer given no retry policy makes one attempt
+
+Cases: RETRY-004 (pending)
+
+A consumer started without a retry policy treats a handler failure as
+exhausted after the first attempt: the message is dead-lettered to
+`{queue}.dlq` as in AMQP-RETRY-005, with `x-acemq-attempt` 1, and the handler
+is not called for it again. Retrying for ever, in the consumer or by
+republishing to the source queue, is not a default.

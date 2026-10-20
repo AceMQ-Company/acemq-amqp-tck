@@ -24,3 +24,12 @@ Cases: REPLAY-001
 Every message the filter accepts is on the target queue exactly once and gone
 from the queue it was taken from when the replay returns, and the replay
 reports how many it moved.
+
+### AMQP-REPLAY-003 (MUST) A replay restarts the attempt and clears the error, and nothing else
+
+Cases: REPLAY-002 (pending)
+
+With the default settings (attempts restarted), the replayed message carries
+`x-acemq-attempt` 1 and no `x-acemq-error`; `acemq-replay-count` is one more
+than the integer it arrived with (1 when it had none). Every other header,
+the body, `content_type` and `message_id` are unchanged.

@@ -1,0 +1,38 @@
+{
+  "id": "REPLAY-002",
+  "title": "a replayed message carries the replay audit headers, attempt 1, no error, and every other header unchanged",
+  "requirements": ["AMQP-ENV-013", "AMQP-REPLAY-003", "AMQP-ENV-014"],
+  "comment": [
+    "acemq-replayed-at is millisecond ISO-8601 UTC, as in the replayed fixture. From the code: Java writes Instant.toString() (as many fraction digits as the clock has), Python isoformat() (microseconds and +00:00), Ruby, .NET and Go whole seconds with Z.",
+    "Java keeps x-acemq-error on a replay on purpose (Replay.java); the other four remove it. Go reads an existing acemq-replay-count only when it is a number, which this one is.",
+    "x-acemq-future is AMQP-ENV-014: Go rebuilds the replayed message from its envelope fields."
+  ],
+  "steps": [
+    {"broker": "declareQueue", "queue": "${ns}.work"},
+    {"broker": "declareQueue", "queue": "${ns}.work.dlq"},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work.dlq", "body": {"id": "r1"},
+     "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "r1",
+       "headers": {"x-acemq-id": "r1", "x-acemq-type": "order.placed", "x-acemq-version": 1,
+         "x-acemq-correlation": "corr-rp", "x-acemq-attempt": 3, "x-acemq-first-seen": 1767323045678,
+         "x-acemq-origin": "orders@host-7", "x-acemq-error": "handler failed",
+         "acemq-replay-count": 1, "x-acemq-future": "kept", "x-tenant": "acme"}}},
+    {"expect": "depth", "queue": "${ns}.work.dlq", "count": 1, "withinMs": 10000},
+    {"driver": "replay", "from": "${ns}.work.dlq", "queue": "${ns}.work", "ids": ["r1"], "as": "replay"},
+    {"expect": "step", "step": "replay", "match": {"ok": true, "result": {"replayed": 1}}},
+    {"expect": "message", "queue": "${ns}.work", "withinMs": 10000, "match": {
+      "body": {"id": "r1"},
+      "properties": {"content_type": "application/json", "message_id": "r1"},
+      "headers": {
+        "acemq-replay-count": 2,
+        "acemq-replayed-from": "${ns}.work.dlq",
+        "acemq-replayed-at": {"$type": "string", "$regex": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"},
+        "x-acemq-attempt": 1,
+        "x-acemq-error": {"$absent": true},
+        "x-acemq-id": "r1", "x-acemq-type": "order.placed", "x-acemq-version": 1,
+        "x-acemq-correlation": "corr-rp", "x-acemq-first-seen": 1767323045678,
+        "x-acemq-origin": "orders@host-7", "x-acemq-future": "kept", "x-tenant": "acme"
+      }
+    }},
+    {"expect": "drain", "queue": "${ns}.work.dlq", "match": {"count": 0}}
+  ]
+}

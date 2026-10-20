@@ -93,8 +93,20 @@ Cases: ENV-001, ENV-002
 
 ### AMQP-ENV-013 (MUST) A replayed message carries the replay audit headers
 
-Cases: none yet
+Cases: REPLAY-002 (pending)
 
 `acemq-replay-count`, `acemq-replayed-at` (ISO-8601 UTC, millisecond
 precision) and `acemq-replayed-from` (the queue it was taken from), as in the
 `replayed` fixture.
+
+### AMQP-ENV-014 (MUST) An `x-acemq-` header the library does not know survives every on-behalf republish
+
+Cases: PARK-001 (pending), RETRY-004 (pending), REPLAY-002 (pending)
+
+A retry hop, a dead-letter, a park and a replay republish a message the
+library did not write, possibly one written by a newer version of another
+library. A header in the `x-acemq-` namespace that is not in the AMQP-ENV-001
+table is carried unchanged, exactly like an application header. Rebuilding the
+headers from the library's own envelope fields, and so dropping the ones it
+has no field for, makes every new envelope header a silent loss in a mixed
+fleet.

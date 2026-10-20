@@ -1,0 +1,28 @@
+{
+  "id": "RETRY-004",
+  "title": "a consumer given no retry policy dead-letters a failure after one attempt, keeping every header",
+  "requirements": ["AMQP-RETRY-008", "AMQP-RETRY-005", "AMQP-ENV-014"],
+  "comment": [
+    "consume without a retry argument: the library's consumer with no retry policy configured. Java (RetryPolicy.none()), Python (no_retry()) and Ruby (RetryPolicy.none) dead-letter after one attempt. .NET waits 5s and republishes to the source queue for ever (Ack.Retry with no policy); Go republishes to the source queue at once with attempt+1, without limit, under its zero policy.",
+    "x-acemq-future is AMQP-ENV-014: Python, Ruby and Go rebuild the dead-lettered message's headers from their envelope fields."
+  ],
+  "steps": [
+    {"driver": "consume", "queue": "${ns}.work", "handle": "c1", "prefetch": 10,
+     "behaviour": {"failFirst": {"m1": 1000}}},
+    {"expect": "consumers", "queue": "${ns}.work", "count": 1, "withinMs": 10000},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work", "body": {"id": "m1"},
+     "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "m1",
+       "headers": {"x-acemq-id": "m1", "x-acemq-attempt": 1, "x-acemq-correlation": "corr-r4",
+         "x-acemq-first-seen": 1767323045678, "x-acemq-future": "kept", "x-tenant": "acme"}}},
+    {"expect": "message", "queue": "${ns}.work.dlq", "withinMs": 15000, "match": {
+      "body": {"id": "m1"},
+      "headers": {"x-acemq-id": "m1", "x-acemq-attempt": 1, "x-acemq-correlation": "corr-r4",
+        "x-acemq-first-seen": 1767323045678, "x-acemq-future": "kept", "x-tenant": "acme",
+        "x-acemq-error": {"$type": "string", "$regex": "."}}
+    }},
+    {"comment": "long enough for a 5s in-consumer retry to show", "sleep": 7000},
+    {"expect": "driver", "call": {"op": "handled", "handle": "c1"}, "match": {"counts": {"m1": 1}}},
+    {"expect": "depth", "queue": "${ns}.work", "count": 0},
+    {"comment": "dead-lettered exactly once", "expect": "drain", "queue": "${ns}.work.dlq", "match": {"count": 0}}
+  ]
+}

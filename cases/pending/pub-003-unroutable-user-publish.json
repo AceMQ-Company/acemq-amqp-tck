@@ -1,0 +1,22 @@
+{
+  "id": "PUB-003",
+  "title": "a user publish the broker cannot route is an unroutable error, by default and when asked for, and a nack is not",
+  "requirements": ["AMQP-PUB-003", "AMQP-PUB-004", "AMQP-PUB-006"],
+  "comment": [
+    "Java and .NET publish mandatory by default; Python, Ruby and Go only with mandatory set, so the last publish (no mandatory argument) succeeds silently there.",
+    "Java and .NET throw one exception type for unroutable and nacked and drivers tell them apart by message text; AMQP-PUB-003 asks for a type, flag or field. The broker cannot see that, so the case checks the kinds only."
+  ],
+  "steps": [
+    {"broker": "declareExchange", "exchange": "${ns}.ex", "type": "direct"},
+    {"broker": "declareQueue", "queue": "${ns}.full",
+     "args": {"x-queue-type": "classic", "x-max-length": 0, "x-overflow": "reject-publish"}},
+    {"driver": "publish", "exchange": "${ns}.ex", "routingKey": "nowhere", "body": {"id": "u-1"},
+     "mandatory": true, "as": "asked"},
+    {"expect": "step", "step": "asked", "match": {"ok": false, "error": {"kind": "unroutable"}}},
+    {"driver": "publish", "exchange": "", "routingKey": "${ns}.full", "body": {"id": "u-2"},
+     "mandatory": true, "as": "nacked"},
+    {"expect": "step", "step": "nacked", "match": {"ok": false, "error": {"kind": "nacked"}}},
+    {"driver": "publish", "exchange": "${ns}.ex", "routingKey": "nowhere", "body": {"id": "u-3"}, "as": "default"},
+    {"expect": "step", "step": "default", "match": {"ok": false, "error": {"kind": "unroutable"}}}
+  ]
+}

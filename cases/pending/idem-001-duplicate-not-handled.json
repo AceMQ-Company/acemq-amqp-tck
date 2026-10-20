@@ -1,0 +1,32 @@
+{
+  "id": "IDEM-001",
+  "title": "an idempotent consumer handles a message id once, keyed by x-acemq-id or, without it, by message_id",
+  "requirements": ["AMQP-IDEM-001", "AMQP-IDEM-002"],
+  "comment": [
+    "d-1 carries x-acemq-id; d-2 is what a non-AceMQ publisher sends, message_id and no envelope headers. Java, .NET and Go fall back to message_id; Python and Ruby generate a fresh id for a message without x-acemq-id, so both copies of d-2 are handled.",
+    "Each copy is published after the previous one was handled, so the duplicate meets a confirmed claim, not one in progress."
+  ],
+  "steps": [
+    {"driver": "consume", "queue": "${ns}.work", "handle": "c1", "prefetch": 1,
+     "retry": {"maxAttempts": 3, "delayMs": 300}, "behaviour": {}, "idempotent": true},
+    {"expect": "consumers", "queue": "${ns}.work", "count": 1, "withinMs": 10000},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work", "body": {"id": "d-1"},
+     "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "d-1",
+       "headers": {"x-acemq-id": "d-1", "x-acemq-attempt": 1}}},
+    {"expect": "driver", "call": {"op": "handled", "handle": "c1"}, "withinMs": 10000, "match": {"counts": {"d-1": 1}}},
+    {"sleep": 500},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work", "body": {"id": "d-1"},
+     "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "d-1",
+       "headers": {"x-acemq-id": "d-1", "x-acemq-attempt": 1}}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work", "body": {"id": "d-2"},
+     "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "d-2"}},
+    {"expect": "driver", "call": {"op": "handled", "handle": "c1"}, "withinMs": 10000, "match": {"counts": {"d-2": 1}}},
+    {"sleep": 500},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work", "body": {"id": "d-2"},
+     "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "d-2"}},
+    {"sleep": 3000},
+    {"expect": "driver", "call": {"op": "handled", "handle": "c1"}, "match": {"counts": {"d-1": 1, "d-2": 1}}},
+    {"expect": "depth", "queue": "${ns}.work", "count": 0, "withinMs": 5000},
+    {"expect": "noMessagesIn", "pattern": "^${nsre}\\.work\\.(dlq|parked)$"}
+  ]
+}

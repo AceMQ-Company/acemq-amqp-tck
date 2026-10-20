@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+- Spec: AMQP-ENV-014 (an unknown `x-acemq-` header survives every on-behalf
+  republish), AMQP-PUB-006 (a user publish is mandatory unless the caller opts
+  out), AMQP-RETRY-006..008 (an undecodable body is parked once and unchanged;
+  a refused park loses nothing; no retry policy means one attempt),
+  AMQP-STREAM-004 (a failing handler stops a stream reader),
+  AMQP-REPLAY-003 (a replay restarts the attempt and clears the error),
+  `spec/09-idempotency.md` (AMQP-IDEM-001..002) and
+  `spec/10-routing-slip.md` (AMQP-SLIP-001..003). AMQP-PUB-003 adds that the
+  unroutable/nacked distinction should be part of the API (a SHOULD).
+- Pending cases (`cases/pending/`, written from reading the five libraries'
+  code; see ROADMAP.md for the divergence each one is expected to show):
+  PARK-001, PARK-002, RETRY-004, REPLAY-002, PUB-003, STREAM-003, IDEM-001,
+  SLIP-001, SLIP-002. AMQP-ENV-013, AMQP-PUB-003 and AMQP-STREAM-003 now have
+  cases.
+- Driver op `pipeline` (`name`, `steps`, `handle` -> `{}`); arguments
+  `publish.mandatory`, `consume.idempotent`, `readStream.behaviour`, and
+  `consume` without `retry` (no retry policy). See docs/driver-contract.md.
+- Runner: matcher operator `$json` (a string that parses as JSON matching the
+  pattern), for `acemq-routing-slip`.
+
 ## [0.3.0] - 2026-10-20
 
 - `spec/08-replay.md`: AMQP-REPLAY-001 (a filtered replay returns only once

@@ -60,7 +60,8 @@ def match(actual, pattern, root=None, where="$"):
 
     A dict pattern is a subset match. A dict whose keys all start with ``$`` is
     an operator: $regex, $type, $gt, $gte, $lt, $lte, $sameAs (a /-separated
-    path from the root of the thing being matched), $absent, $oneOf.
+    path from the root of the thing being matched), $absent, $oneOf, $contains,
+    $json (a string that parses as JSON matching the pattern).
     """
     root = actual if root is None else root
     if isinstance(pattern, dict) and pattern and all(k.startswith("$") for k in pattern):
@@ -117,6 +118,13 @@ def operator(op, want, actual, root):
         return None if actual in want else f"{actual!r} is not one of {want!r}"
     if op == "$absent":
         return None  # handled by the enclosing object
+    if op == "$json":
+        # A header whose value is a JSON document (acemq-routing-slip).
+        try:
+            parsed = json.loads(actual) if isinstance(actual, str) else None
+        except ValueError:
+            parsed = None
+        return match(parsed, want) if parsed is not None else f"{actual!r} is not a JSON string"
     if op == "$contains":
         if not isinstance(actual, list):
             return f"{actual!r} is not a list"
@@ -142,6 +150,9 @@ def self_test():
     assert match([1, {"a": 2}], [1, {"a": 2}]) is None
     assert match([{"n": "a"}, {"n": "b", "t": 1}], {"$contains": [{"n": "b"}, "x"]})
     assert match([{"n": "a"}, {"n": "b", "t": 1}], {"$contains": [{"n": "b"}, {"n": "a"}]}) is None
+    assert match('{"steps": [{"r": "t"}], "done": []}', {"$json": {"steps": [{"r": "t"}]}}) is None
+    assert match('{"steps": []}', {"$json": {"steps": [{"r": "t"}]}})
+    assert match("not json{", {"$json": {}}) and match(7, {"$json": {}})
     assert substitute({"q": "${ns}.x", "n": ["${ns}"]}, {"ns": "t"}) == {"q": "t.x", "n": ["t"]}
     assert drained([{"body": {"id": "b"}}, {"body": {"id": "a"}}, {"body": {"id": "b"}}, {"body": "raw"}]) == \
         {"count": 4, "ids": ["", "a", "b", "b"]}

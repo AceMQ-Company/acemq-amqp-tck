@@ -48,8 +48,8 @@ in `hello` fails every case that uses it.
 | `hello` | — | `{"library", "version", "ops": [...]}` | the library's name and version as the library reports it; the ops implemented |
 | `begin` | `case`, `clientName`, `confirms`? | `{}` | close whatever the previous case left; open a fresh connection whose origin service is `clientName`, so `x-acemq-origin` is `{clientName}@{host}`. `confirms: false` turns publisher confirms off for the user's own publishes where the library has such a switch; a library that always confirms ignores it |
 | `end` | — | `{}` | close everything this case opened: consumers, schedulers, requesters, the connection. Idempotent: called again after a case's own `end` step |
-| `publish` | `exchange`, `routingKey`, `body`, `envelope`? | `{"messageId"}` | publish `body` (a JSON value) with the library's JSON codec and default publish settings. `envelope` may carry `id`, `type`, `version`, `correlationId`, `causationId`, `headers`; any field absent means "let the library decide" |
-| `consume` | `queue`, `handle`, `prefetch`, `retry: {maxAttempts, delayMs}`, `behaviour: {failFirst: {id: n}, sleepMs}` | `{}` | declare `queue` the way the library's own topology declares a consumed queue with that retry policy (source queue, dead-letter and parked queues, rungs), then consume it with a fixed-delay retry policy. The handler reads `body.id`, counts the delivery, sleeps `sleepMs`, and fails (with the library's ordinary retryable failure) for the first `n` deliveries of an id named in `failFirst` |
+| `publish` | `exchange`, `routingKey`, `body`, `envelope`?, `mandatory`? | `{"messageId"}` | publish `body` (a JSON value) with the library's JSON codec and default publish settings. `envelope` may carry `id`, `type`, `version`, `correlationId`, `causationId`, `headers`; any field absent means "let the library decide". `mandatory` absent means the library's default; `true` and `false` set it explicitly (see below). Failure kinds: `unroutable`, `nacked`, `paused` |
+| `consume` | `queue`, `handle`, `prefetch`, `retry: {maxAttempts, delayMs}`?, `behaviour: {failFirst: {id: n}, sleepMs}`, `idempotent`? | `{}` | declare `queue` the way the library's own topology declares a consumed queue with that retry policy (source queue, dead-letter and parked queues, rungs), then consume it with a fixed-delay retry policy. **`retry` absent** means no retry policy at all: the consumer exactly as the library builds it when the caller configures none — not a driver default such as three attempts. The handler reads `body.id`, counts the delivery, sleeps `sleepMs`, and fails (with the library's ordinary retryable failure) for the first `n` deliveries of an id named in `failFirst`. **`idempotent: true`** makes the consumer idempotent with the library's in-memory idempotency store and its default key and retention; the count is taken inside the idempotent wrapper, so a duplicate the library suppresses is not counted |
 | `handled` | `handle` | `{"counts": {id: n}, "redelivered": {id: n}, "order": [id, ...]}` | how many times the handler has been called for each id, how many of those deliveries carried the AMQP `redelivered` flag (ids with none are left out), and every id in the order it arrived |
 | `schedule` | `delayMs`, `exchange`, `routingKey`, `body` | `{}` | schedule `body` through the library's scheduler, opening one for this case on first use |
 | `request` | `exchange`, `routingKey`, `body`, `timeoutMs` | `{"reply": value}` | a request/reply call with the library's default reply queue and JSON codec, opening one requester per destination for this case on first use. Failure kinds: `decode`, `timeout`, `responder` |
@@ -59,7 +59,7 @@ in `hello` fails every case that uses it.
 | op | arguments | result | what it does |
 |---|---|---|---|
 | `declareStream` | `queue`, `maxAgeMs` | `{}` | declare a stream through the library's stream helper with that retention |
-| `readStream` | `queue`, `handle`, `offset` (`first` or `next`) | `{}` | read the stream through the library's stream reader with its default recovery; deliveries are counted under `handle` exactly like `consume`, and read back with `handled` |
+| `readStream` | `queue`, `handle`, `offset` (`first` or `next`), `behaviour`? | `{}` | read the stream through the library's stream reader with its default recovery and its default handling of a failed handler; deliveries are counted under `handle` exactly like `consume`, and read back with `handled`. `behaviour` is `consume`'s: the handler fails (the library's ordinary handler failure: throw, raise, return an error) for the first `n` deliveries of an id in `failFirst` |
 | `metrics` | — | `{"names": [...], "samples": [{"name", "tags"}]}` | every metric the library reported to its telemetry seam since `begin`, one sample per report, through a recorder the driver installs at `begin` |
 
 ### Replay
@@ -76,9 +76,55 @@ Python `replay(connection, from, exchange="", routing_key=queue, only=...)`,
 Ruby `Patterns.replay(connection, from:, exchange: "", routing_key: queue) { ... }`.
 A library whose replay raises reports it as a failure with kind `other`.
 
+### Mandatory publishes
+
+`mandatory: true` is the library's mandatory switch, `false` its opt-out:
+Java `publisher.with(PublishOptions.defaults())` (mandatory by default) /
+`PublishOptions.defaults().allowUnroutable()`, .NET `PublishOptions.Defaults()`
+(mandatory by default) / `.AllowUnroutable()`, Python
+`mq.publisher(exchange, routing_key, mandatory=True)`, Ruby
+`mq.publish(payload, to:, exchange:, mandatory: true)`, Go
+`acemq.NewPublisher[T](conn, exchange, routingKey, acemq.Mandatory[T]())`. A
+returned publish is `unroutable` and a nacked one `nacked`: Python
+`PublishError.unroutable`, Ruby `PublishError#unroutable?`, Go
+`errors.As(err, &*PublishFailedError)` and its `Unroutable` field; Java and .NET
+raise one `PublishFailedException` for both, so their drivers read the message
+(`could not be routed`, `matched no queue`).
+
+### Idempotent consumers
+
+`idempotent: true` on `consume`: Java
+`ConsumerOptions.prefetch(n).idempotent(InMemoryIdempotencyStore.forOneDay())`,
+.NET `ConsumerOptions.Prefetch(n).Idempotent(InMemoryIdempotencyStore.ForOneDay())`,
+Python `mq.consume(queue, idempotent(InMemoryIdempotencyStore(), handler))`,
+Ruby `mq.consume(queue, &Patterns.idempotent(Patterns::InMemoryIdempotencyStore.new) { ... })`,
+Go `patterns.Idempotent(patterns.NewInMemoryIdempotencyStore(ttl), handler)`.
+No `key` argument: the case is about each library's default key.
+
+### Pipelines
+
+| op | arguments | result | what it does |
+|---|---|---|---|
+| `pipeline` | `name`, `steps` (step names, in order), `handle` | `{}` | declare and start a pipeline named `name` with those steps: a direct exchange `name`, a queue `{name}.{step}` bound with the step's name, a consumer on each, following the slip each message carries. Every step's handler is the identity on the JSON body: it counts `body.id` under `handle` (read back with `handled`) and returns the body unchanged, so the message goes wherever its slip says next. The driver publishes nothing; the runner sends messages in, with a slip of either form already written |
+
+Java `mq.pipeline(name, JsonNode.class).step(s, JsonNode.class, identity)...build()`
+(`AceMq.pipeline`, `PipelineBuilder.step`, `PipelineBuilder.build`), .NET
+`mq.Pipeline<T>(name).Step<T>(s, identity)...BuildAsync()` with a JSON-node
+reference type for `T`, Go
+`patterns.NewPipeline[T](ctx, conn, name, patterns.PipelineStep(s, identity)...)`,
+Ruby `Patterns::Pipeline.new(name, steps)` and, on each `{name}.{step}`,
+`pipeline.follow(mq) { |m| identity }`, Python (no pipeline builder) the
+exchange, queues and bindings through its topology helpers and, on each
+`{name}.{step}`, `mq.consume(queue, follow_slip(mq, identity, pipeline=name))`.
+Whatever the library's pipeline does not declare itself, the driver declares
+with the library's topology helpers, never with raw channel calls.
+
 Arguments a driver does not recognise are ignored, so a case may add an
 optional argument without breaking older drivers; a new **op** is a new TCK
-minor version.
+minor version. A case whose outcome depends on an argument (`mandatory`,
+`idempotent`, `consume` without `retry`, `readStream` with `behaviour`) fails
+on a driver that ignores it, which is one reason such a case starts in
+`cases/pending/`.
 
 ## Timing
 

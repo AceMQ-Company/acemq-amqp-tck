@@ -1,0 +1,29 @@
+{
+  "id": "SLIP-001",
+  "title": "a route written by someone else is followed step by step: position advanced, run id and correlation kept",
+  "requirements": ["AMQP-SLIP-001", "AMQP-SLIP-003"],
+  "comment": [
+    "The runner writes the route the way the spec says, as a step in another language would, and taps the hop into the last step with a second queue bound to the same exchange and key.",
+    "All five read and write this form with a 0-based position. Python and Go publish each hop as a new envelope and do not carry application headers, which the spec does not require; Python generates a run id per hop only when none arrived."
+  ],
+  "steps": [
+    {"driver": "pipeline", "name": "${ns}.p", "steps": ["a", "b", "c"], "handle": "s1"},
+    {"expect": "consumers", "queue": "${ns}.p.a", "count": 1, "withinMs": 15000},
+    {"expect": "consumers", "queue": "${ns}.p.c", "count": 1, "withinMs": 15000},
+    {"broker": "declareQueue", "queue": "${ns}.tap"},
+    {"broker": "bind", "queue": "${ns}.tap", "exchange": "${ns}.p", "routingKey": "c"},
+    {"broker": "publish", "exchange": "${ns}.p", "routingKey": "a", "body": {"id": "p-1"},
+     "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "p-1",
+       "headers": {"x-acemq-id": "p-1", "x-acemq-attempt": 1, "x-acemq-correlation": "corr-slip",
+         "x-acemq-route": "a,b,c", "x-acemq-route-position": 0, "x-acemq-route-id": "run-1"}}},
+    {"expect": "message", "queue": "${ns}.tap", "withinMs": 15000, "match": {
+      "body": {"id": "p-1"},
+      "headers": {"x-acemq-route": "a,b,c", "x-acemq-route-position": 2, "x-acemq-route-id": "run-1",
+        "x-acemq-correlation": "corr-slip", "x-acemq-causation": {"$type": "string", "$regex": "."},
+        "acemq-routing-slip": {"$absent": true}}
+    }},
+    {"expect": "driver", "call": {"op": "handled", "handle": "s1"}, "withinMs": 10000, "match": {"counts": {"p-1": 3}}},
+    {"expect": "depth", "queue": "${ns}.p.c", "count": 0, "withinMs": 5000},
+    {"expect": "noMessagesIn", "pattern": "^${nsre}\\.p\\..*\\.(dlq|parked)$"}
+  ]
+}

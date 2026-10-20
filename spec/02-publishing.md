@@ -22,10 +22,12 @@ requeue to a place nothing reads.
 
 ### AMQP-PUB-003 (MUST) An unroutable user publish is an error
 
-Cases: none yet
+Cases: PUB-003 (pending)
 
 A mandatory publish the broker returns raises (or returns) an error that says
-it was unroutable, distinguishable from a refusal.
+it was unroutable, distinguishable from a refusal (a `basic.nack`). The distinction SHOULD be
+part of the API — a type, a flag or a field the caller can test — rather than
+only the wording of a message.
 
 ### AMQP-PUB-004 (MUST) Back pressure is distinguishable from a publish that may be lost
 
@@ -45,3 +47,12 @@ alarm) fails within the library's blocked timeout rather than waiting for the
 alarm to clear. It is reported as possibly published (`failed`) when it was
 written before the block was known, and as `paused` / `refused` when the
 library knew and did not write it.
+
+### AMQP-PUB-006 (MUST) A user publish is mandatory unless the caller opts out
+
+Cases: PUB-003 (pending)
+
+A publish made with the library's default settings sets `mandatory`, so a
+message the broker can route nowhere is an error (AMQP-PUB-003) rather than a
+silent loss. Publishing without it is an explicit opt-out (`allowUnroutable`
+or the library's equivalent).
