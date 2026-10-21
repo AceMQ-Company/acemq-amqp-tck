@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import http.client
 import json
 import os
 import queue
@@ -156,6 +157,21 @@ def self_test():
     assert substitute({"q": "${ns}.x", "n": ["${ns}"]}, {"ns": "t"}) == {"q": "t.x", "n": ["t"]}
     assert drained([{"body": {"id": "b"}}, {"body": {"id": "a"}}, {"body": {"id": "b"}}, {"body": "raw"}]) == \
         {"count": 4, "ids": ["", "a", "b", "b"]}
+    # A management API that drops the connection fails the case after three tries; it never ends the run.
+    real_urlopen, real_sleep, tries = urllib.request.urlopen, time.sleep, []
+
+    def dropped(*_args, **_kwargs):
+        tries.append(1)
+        raise http.client.RemoteDisconnected("closed")
+
+    urllib.request.urlopen, time.sleep = dropped, lambda _s: None
+    try:
+        Broker("http://localhost:1").queue_names()
+        raise AssertionError("a dropped connection did not fail the case")
+    except CaseFailed:
+        assert len(tries) == 3
+    finally:
+        urllib.request.urlopen, time.sleep = real_urlopen, real_sleep
     print("self-test: ok")
 
 
@@ -185,14 +201,23 @@ class Broker:
         request = urllib.request.Request(self.base + "/api/" + path, data=data, method=method)
         request.add_header("Authorization", self.auth)
         request.add_header("Content-Type", "application/json")
-        try:
-            with urllib.request.urlopen(request, timeout=30) as response:
-                text = response.read()
-                return json.loads(text) if text else None
-        except urllib.error.HTTPError as e:
-            if missing_ok and e.code == 404:
-                return None
-            raise CaseFailed(f"management API {method} /api/{path}: {e.code} {e.read()[:300]!r}")
+        # A dropped connection or a timeout (URLError, RemoteDisconnected) used to escape as a
+        # traceback that ended the whole run with exit 1 and no FAIL line. GET and DELETE are
+        # safe to repeat, so they get two more tries; anything left fails the case, not the run.
+        tries = 3 if method in ("GET", "DELETE") else 1
+        for attempt in range(1, tries + 1):
+            try:
+                with urllib.request.urlopen(request, timeout=30) as response:
+                    text = response.read()
+                    return json.loads(text) if text else None
+            except urllib.error.HTTPError as e:
+                if missing_ok and e.code == 404:
+                    return None
+                raise CaseFailed(f"management API {method} /api/{path}: {e.code} {e.read()[:300]!r}")
+            except (OSError, http.client.HTTPException) as e:
+                if attempt == tries:
+                    raise CaseFailed(f"management API {method} /api/{path}: {type(e).__name__}: {e}") from None
+                time.sleep(0.5 * attempt)
 
     def wait_ready(self, seconds):
         deadline = time.monotonic() + seconds
@@ -382,8 +407,12 @@ class Run:
         paths = [f"policies/{VHOST}/{q(n)}" for n in self.policies]
         deadline = time.monotonic() + 5
         while True:
-            paths += [f"queues/{VHOST}/{q(n)}" for n in self.broker.queue_names() - queues_before]
-            paths += [f"exchanges/{VHOST}/{q(n)}" for n in self.broker.exchange_names() - exchanges_before]
+            try:
+                paths += [f"queues/{VHOST}/{q(n)}" for n in self.broker.queue_names() - queues_before]
+                paths += [f"exchanges/{VHOST}/{q(n)}" for n in self.broker.exchange_names() - exchanges_before]
+            except CaseFailed as e:
+                print(f"    (clean-up could not list what the case left: {e})", flush=True)
+                return
             left = []
             for path in dict.fromkeys(paths):
                 try:

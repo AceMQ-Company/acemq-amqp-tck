@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+### Added
+
 - Spec: AMQP-SLIP-004 (a pipeline step whose own handler fails, in a pipeline
   with no retry policy, is attempted once and dead-lettered to
   `{pipeline}.{step}.dlq` with every header kept: AMQP-RETRY-008 for pipeline
@@ -11,6 +13,15 @@
   ever when no policy is configured.
 - Driver op `pipeline` takes an optional `behaviour`, a map from step name to
   `consume`'s behaviour (`failFirst`, `sleepMs`); see docs/driver-contract.md.
+
+### Fixed
+
+- A management API call that drops its connection or times out (`URLError`,
+  `RemoteDisconnected`) now fails the case it happened in. It used to escape
+  as a traceback that ended the whole run with exit 1 and no FAIL line, as one
+  Java run did at SCHED-001 on 2026-10-20. GET and DELETE are tried three
+  times first, and clean-up no longer replaces a case's outcome when it cannot
+  list what the case left.
 
 ## [0.3.1] - 2026-10-20
 
