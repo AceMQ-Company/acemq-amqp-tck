@@ -1,0 +1,20 @@
+{
+  "id": "CLAIM-002",
+  "title": "a consumer redeems a claim check another library wrote into the shared filesystem store, and leaves it there",
+  "requirements": ["AMQP-CLAIM-002", "AMQP-CLAIM-001"],
+  "comment": [
+    "The runner plays the other library: it writes the payload into the store's directory under a key and publishes the three framing bytes and the key. The handler must see the payload; a consumer that cannot redeem it fails it as undecodable and parks it."
+  ],
+  "steps": [
+    {"driver": "claimCheck", "directory": "${tmp}/claims", "thresholdBytes": 256},
+    {"driver": "consume", "queue": "${ns}.work", "handle": "c1", "prefetch": 10},
+    {"expect": "consumers", "queue": "${ns}.work", "count": 1, "withinMs": 10000},
+    {"broker": "storeClaim", "directory": "${tmp}/claims", "key": "tck-claim-7f3a", "body": {"id": "k1", "size": "large"}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work", "claimKey": "tck-claim-7f3a",
+     "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "k1",
+       "headers": {"x-acemq-id": "k1", "x-acemq-attempt": 1, "x-acemq-correlation": "corr-k1"}}},
+    {"expect": "driver", "call": {"op": "handled", "handle": "c1"}, "withinMs": 10000, "match": {"counts": {"k1": 1}}},
+    {"expect": "depth", "queue": "${ns}.work", "count": 0, "withinMs": 5000},
+    {"expect": "noMessagesIn", "pattern": "^${nsre}\\.work\\.(dlq|parked)$"}
+  ]
+}

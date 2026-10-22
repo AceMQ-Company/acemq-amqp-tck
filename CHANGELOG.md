@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+### Added
+
+- Pending cases for claim check, outbox relay, consumer groups, pipeline-hop
+  headers and shutdown drain (`cases/pending/`): SLIP-004, SLIP-005,
+  CLAIM-001, CLAIM-002, OUTBOX-001, OUTBOX-002, CONSUME-001 and CONSUME-002.
+  ROADMAP.md records where each library stands.
+- Spec: AMQP-SLIP-005 (a hop carries the headers it does not own),
+  `11-claim-check.md` (AMQP-CLAIM-001 framing, AMQP-CLAIM-002 filesystem
+  store), `12-outbox.md` (AMQP-OUTBOX-001 a relayed message is the recorded
+  one, AMQP-OUTBOX-002 a record the broker did not take stays) and
+  `13-consumers.md` (AMQP-CONSUME-001 a group of n is n consumers,
+  AMQP-CONSUME-002 closing drains what is in flight).
+- Driver ops `claimCheck`, `outbox` and `consumeGroup`; `end` may be called as
+  a step. See docs/driver-contract.md.
+- Runner: `${tmp}` (a directory per case), `broker: storeClaim`, `publish`
+  with `claimKey`, `expect: claimCheck` and the `$size` operator.
+
 ## [0.3.2] - 2026-10-21
 
 ### Added

@@ -1,0 +1,18 @@
+{
+  "id": "OUTBOX-002",
+  "title": "a record the broker returns unroutable stays in the outbox and arrives once its queue exists",
+  "requirements": ["AMQP-OUTBOX-002", "AMQP-PUB-001", "AMQP-PUB-002"],
+  "comment": [
+    "The record goes to the default exchange with a queue name that does not exist yet, so a mandatory publish is returned. A relay that publishes without mandatory, or marks the record before the answer, has dropped it by the time the queue is declared."
+  ],
+  "steps": [
+    {"driver": "outbox", "exchange": "", "routingKey": "${ns}.late", "body": {"id": "o2"}},
+    {"comment": "a few relay passes against nothing", "sleep": 3000},
+    {"broker": "declareQueue", "queue": "${ns}.late"},
+    {"expect": "message", "queue": "${ns}.late", "withinMs": 30000, "match": {
+      "body": {"id": "o2"}, "headers": {"x-acemq-id": {"$type": "string", "$regex": "."}}
+    }},
+    {"sleep": 4000},
+    {"comment": "exactly once", "expect": "drain", "queue": "${ns}.late", "match": {"count": 0}}
+  ]
+}

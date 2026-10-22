@@ -1,0 +1,30 @@
+{
+  "id": "CONSUME-001",
+  "title": "a consumer group of three is three broker consumers with the prefetch given, handling three messages at once",
+  "requirements": ["AMQP-CONSUME-001"],
+  "comment": [
+    "Six messages whose handler sleeps 4s, a group of three with prefetch 1: three handlers start at once and a fourth only when one of them finishes. The broker shows the three consumers and each one's prefetch; one consumer with a bigger prefetch, or a shared channel prefetch, shows something else. (A quorum queue's message counts lag by seconds, so the concurrency is read from the handler.)"
+  ],
+  "steps": [
+    {"driver": "consumeGroup", "queue": "${ns}.work", "handle": "g1", "size": 3, "prefetch": 1,
+     "behaviour": {"sleepMs": 4000}},
+    {"expect": "consumers", "queue": "${ns}.work", "count": 3, "withinMs": 10000},
+    {"expect": "queue", "queue": "${ns}.work", "withinMs": 5000, "match": {
+      "consumer_details": [{"prefetch_count": 1}, {"prefetch_count": 1}, {"prefetch_count": 1}]}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work", "body": {"id": "g1"}, "properties": {"content_type": "application/json"}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work", "body": {"id": "g2"}, "properties": {"content_type": "application/json"}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work", "body": {"id": "g3"}, "properties": {"content_type": "application/json"}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work", "body": {"id": "g4"}, "properties": {"content_type": "application/json"}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work", "body": {"id": "g5"}, "properties": {"content_type": "application/json"}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work", "body": {"id": "g6"}, "properties": {"content_type": "application/json"}},
+    {"comment": "three handlers running at once", "expect": "driver", "call": {"op": "handled", "handle": "g1"}, "withinMs": 3000,
+     "match": {"order": {"$size": 3}}},
+    {"sleep": 1500},
+    {"comment": "and only three: the next starts when one of them is acknowledged", "expect": "driver", "call": {"op": "handled", "handle": "g1"},
+     "match": {"order": {"$size": 3}}},
+    {"expect": "driver", "call": {"op": "handled", "handle": "g1"}, "withinMs": 15000,
+     "match": {"counts": {"g1": 1, "g2": 1, "g3": 1, "g4": 1, "g5": 1, "g6": 1}}},
+    {"expect": "depth", "queue": "${ns}.work", "count": 0, "withinMs": 10000},
+    {"expect": "noMessagesIn", "pattern": "^${nsre}\\.work\\.(dlq|parked)$"}
+  ]
+}

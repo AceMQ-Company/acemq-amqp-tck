@@ -1,0 +1,29 @@
+{
+  "id": "SLIP-004",
+  "title": "a pipeline hop in the route form carries application headers and unknown x-acemq- headers on",
+  "requirements": ["AMQP-SLIP-005", "AMQP-SLIP-003", "AMQP-ENV-014"],
+  "comment": [
+    "SLIP-001's route, entering step a with a tenant header, a W3C trace header and an x-acemq- header no library knows, and tapped one hop later by a second queue bound to the pipeline's exchange with key b."
+  ],
+  "steps": [
+    {"driver": "pipeline", "name": "${ns}.p", "steps": ["a", "b", "c"], "handle": "s1"},
+    {"expect": "consumers", "queue": "${ns}.p.a", "count": 1, "withinMs": 15000},
+    {"expect": "consumers", "queue": "${ns}.p.c", "count": 1, "withinMs": 15000},
+    {"broker": "declareQueue", "queue": "${ns}.tap"},
+    {"broker": "bind", "queue": "${ns}.tap", "exchange": "${ns}.p", "routingKey": "b"},
+    {"broker": "publish", "exchange": "${ns}.p", "routingKey": "a", "body": {"id": "h-r"},
+     "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "h-r",
+       "headers": {"x-acemq-id": "h-r", "x-acemq-attempt": 1, "x-acemq-correlation": "corr-hr",
+         "x-acemq-route": "a,b,c", "x-acemq-route-position": 0, "x-acemq-route-id": "run-4",
+         "x-tenant": "acme", "traceparent": "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01",
+         "x-acemq-future": "kept"}}},
+    {"expect": "message", "queue": "${ns}.tap", "withinMs": 15000, "match": {
+      "body": {"id": "h-r"},
+      "headers": {"x-acemq-route": "a,b,c", "x-acemq-route-position": 1, "x-acemq-route-id": "run-4",
+        "x-acemq-correlation": "corr-hr",
+        "x-tenant": "acme", "traceparent": "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01",
+        "x-acemq-future": "kept"}
+    }},
+    {"expect": "noMessagesIn", "pattern": "^${nsre}\\.p\\..*\\.(dlq|parked)$"}
+  ]
+}

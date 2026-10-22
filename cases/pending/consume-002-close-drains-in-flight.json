@@ -1,0 +1,25 @@
+{
+  "id": "CONSUME-002",
+  "title": "closing lets the handler in flight finish and acknowledges it, and hands nothing new to a handler",
+  "requirements": ["AMQP-CONSUME-002"],
+  "comment": [
+    "end is the driver closing everything the case opened, the way an application shuts down. It is called while m1's handler is in its 4s sleep; m2 waits behind prefetch 1. A close that waits for the handler takes at least 2s. Afterwards m1 must be gone (acknowledged, not requeued) and m2 on the queue, never delivered."
+  ],
+  "steps": [
+    {"driver": "consume", "queue": "${ns}.work", "handle": "d1", "prefetch": 1, "behaviour": {"sleepMs": 4000}},
+    {"expect": "consumers", "queue": "${ns}.work", "count": 1, "withinMs": 10000},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work", "body": {"id": "m1"},
+     "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "m1",
+       "headers": {"x-acemq-id": "m1", "x-acemq-attempt": 1}}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.work", "body": {"id": "m2"},
+     "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "m2",
+       "headers": {"x-acemq-id": "m2", "x-acemq-attempt": 1}}},
+    {"expect": "driver", "call": {"op": "handled", "handle": "d1"}, "withinMs": 5000, "match": {"order": ["m1"]}},
+    {"driver": "end", "as": "close"},
+    {"expect": "step", "step": "close", "match": {"ok": true, "elapsedMs": {"$gte": 2000}}},
+    {"comment": "m2 first in line, never handed out", "expect": "message", "queue": "${ns}.work", "withinMs": 5000,
+     "match": {"body": {"id": "m2"}, "redelivered": false}},
+    {"comment": "m1 was acknowledged, not requeued", "expect": "drain", "queue": "${ns}.work", "match": {"count": 0}},
+    {"expect": "noMessagesIn", "pattern": "^${nsre}\\.work\\.(dlq|parked)$"}
+  ]
+}

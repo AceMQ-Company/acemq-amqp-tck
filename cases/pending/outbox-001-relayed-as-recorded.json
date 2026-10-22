@@ -1,0 +1,23 @@
+{
+  "id": "OUTBOX-001",
+  "title": "a relayed outbox record reaches the broker once, as the message that was recorded",
+  "requirements": ["AMQP-OUTBOX-001", "AMQP-ENV-001", "AMQP-ENV-002", "AMQP-ENV-010", "AMQP-ENV-011", "AMQP-ENV-012"],
+  "comment": [
+    "The outbox op records through the library's own record helper into an in-memory store and starts the library's relay with its defaults. The body is matched as an object: a relay that encodes the recorded bytes a second time puts a JSON string on the wire, which the runner reads as a string."
+  ],
+  "steps": [
+    {"broker": "declareQueue", "queue": "${ns}.work"},
+    {"driver": "outbox", "exchange": "", "routingKey": "${ns}.work", "body": {"id": "o1", "total": 42},
+     "envelope": {"id": "o1", "correlationId": "corr-ob", "headers": {"x-tenant": "acme"}}},
+    {"expect": "message", "queue": "${ns}.work", "withinMs": 15000, "match": {
+      "body": {"id": "o1", "total": 42},
+      "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "o1"},
+      "headers": {"x-acemq-id": "o1", "x-acemq-correlation": "corr-ob", "x-acemq-attempt": 1,
+        "x-acemq-version": 1, "x-acemq-type": {"$type": "string", "$regex": "."},
+        "x-acemq-first-seen": {"$type": "int"}, "x-acemq-origin": {"$type": "string", "$regex": "^tck@"},
+        "x-acemq-causation": {"$absent": true}, "x-tenant": "acme"}
+    }},
+    {"comment": "several relay passes: a published record is not published again", "sleep": 4000},
+    {"expect": "drain", "queue": "${ns}.work", "match": {"count": 0}}
+  ]
+}

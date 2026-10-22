@@ -1,0 +1,25 @@
+{
+  "id": "CLAIM-001",
+  "title": "the claim-check codec frames a small payload inline and checks a large one into the filesystem store under a bare key",
+  "requirements": ["AMQP-CLAIM-001", "AMQP-CLAIM-002"],
+  "comment": [
+    "The driver's connection gets the claim-check codec over its JSON codec with the filesystem store at the case's own directory and a 256-byte threshold. The runner reads the body's three framing bytes, and for a key reads the file the store wrote."
+  ],
+  "steps": [
+    {"driver": "claimCheck", "directory": "${tmp}/claims", "thresholdBytes": 256},
+    {"broker": "declareQueue", "queue": "${ns}.work"},
+    {"driver": "publish", "exchange": "", "routingKey": "${ns}.work",
+     "body": {"id": "big", "text": "................................................................................................................................................................................................................................................................................................................................"}},
+    {"expect": "claimCheck", "queue": "${ns}.work", "directory": "${tmp}/claims", "withinMs": 10000, "match": {
+      "frame": "checked",
+      "key": {"$type": "string", "$regex": "^[A-Za-z0-9][A-Za-z0-9._-]*$"},
+      "payload": {"id": "big"},
+      "properties": {"content_type": "application/json"}
+    }},
+    {"driver": "publish", "exchange": "", "routingKey": "${ns}.work", "body": {"id": "small"}},
+    {"expect": "claimCheck", "queue": "${ns}.work", "directory": "${tmp}/claims", "withinMs": 10000, "match": {
+      "frame": "inline", "payload": {"id": "small"},
+      "properties": {"content_type": "application/json"}
+    }}
+  ]
+}

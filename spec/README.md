@@ -35,6 +35,9 @@ behaviour is observable from outside the library, at least one case in
 | [08-replay.md](08-replay.md) | taking dead-lettered messages back | `AMQP-REPLAY` |
 | [09-idempotency.md](09-idempotency.md) | the idempotent consumer | `AMQP-IDEM` |
 | [10-routing-slip.md](10-routing-slip.md) | the route a message carries | `AMQP-SLIP` |
+| [11-claim-check.md](11-claim-check.md) | payloads kept off the broker | `AMQP-CLAIM` |
+| [12-outbox.md](12-outbox.md) | messages recorded now, published by a relay | `AMQP-OUTBOX` |
+| [13-consumers.md](13-consumers.md) | consumer groups and shutdown | `AMQP-CONSUME` |
 
 ## Terms
 
