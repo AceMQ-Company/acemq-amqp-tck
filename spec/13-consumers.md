@@ -2,7 +2,7 @@
 
 ### AMQP-CONSUME-001 (MUST) A consumer group of n is n consumers
 
-Cases: CONSUME-001 (pending)
+Cases: CONSUME-001
 
 A consumer group of size `n` on a queue is `n` consumers on the broker, on
 that queue, each with the prefetch the caller gave — not one consumer with a
@@ -13,7 +13,7 @@ the same retry policy and dead-lettering.
 
 ### AMQP-CONSUME-002 (MUST) Closing drains what is in flight
 
-Cases: CONSUME-002 (pending)
+Cases: CONSUME-002
 
 Closing a consumer, or the connection it runs on, first stops new deliveries
 (`basic.cancel`), then waits — up to the library's drain timeout — for every

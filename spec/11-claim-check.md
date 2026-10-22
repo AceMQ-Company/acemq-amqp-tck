@@ -6,7 +6,7 @@ framing of the body and the layout of the filesystem store are wire format.
 
 ### AMQP-CLAIM-001 (MUST) The framing
 
-Cases: CLAIM-001 (pending)
+Cases: CLAIM-001
 
 A body written by the claim-check codec starts with three bytes: `0xAC`
 (magic), `0x01` (version), then `0x00` when the payload follows inline, exactly
@@ -19,7 +19,7 @@ not a header: a header can be dropped on the way and the body cannot, so
 
 ### AMQP-CLAIM-002 (MUST) The filesystem store
 
-Cases: CLAIM-001, CLAIM-002 (pending)
+Cases: CLAIM-001, CLAIM-002
 
 The filesystem store keeps a payload in one file, named by its key, directly
 in the store's directory, holding the encoded payload and nothing else. Keys

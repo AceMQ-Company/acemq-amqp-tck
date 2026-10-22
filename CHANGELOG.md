@@ -2,12 +2,15 @@
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-10-22
+
 ### Added
 
-- Pending cases for claim check, outbox relay, consumer groups, pipeline-hop
-  headers and shutdown drain (`cases/pending/`): SLIP-004, SLIP-005,
+- Cases for claim check, outbox relay, consumer groups, pipeline-hop headers
+  and shutdown drain, in the default run (38 cases): SLIP-004, SLIP-005,
   CLAIM-001, CLAIM-002, OUTBOX-001, OUTBOX-002, CONSUME-001 and CONSUME-002.
-  ROADMAP.md records where each library stands.
+  Every library passes them: Java 0.7.19, .NET 0.7.17, Python 0.7.16, Ruby
+  0.7.18 and Go 0.9.13. `spec/` has no "(pending)" markers.
 - Spec: AMQP-SLIP-005 (a hop carries the headers it does not own),
   `11-claim-check.md` (AMQP-CLAIM-001 framing, AMQP-CLAIM-002 filesystem
   store), `12-outbox.md` (AMQP-OUTBOX-001 a relayed message is the recorded

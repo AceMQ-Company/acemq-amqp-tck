@@ -39,12 +39,12 @@ In a library's CI:
     steps:
       - uses: actions/checkout@v4
       # ... set up the toolchain and build the driver ...
-      - uses: AceMQ-Company/acemq-amqp-tck@v0.3.2
+      - uses: AceMQ-Company/acemq-amqp-tck@v0.3.3
         with:
           driver: python tests/tck/driver.py
 ```
 
-The `@v0.3.2` is the library's pin: the version of the contract it passes.
+The `@v0.3.3` is the library's pin: the version of the contract it passes.
 
 Locally, against any RabbitMQ with the management plugin:
 
@@ -61,11 +61,11 @@ against the spec; `--self-test` checks the matcher.
 
 | Library | Driver | Pinned TCK |
 |---|---|---|
-| acemq-java-amqp | `acemq-amqp-test/src/test/java/org/acemq/amqp/tck` | v0.3.2 |
-| acemq-python-amqp | `tests/tck/driver.py` | v0.3.2 |
-| acemq-ruby-amqp | `spec/tck/driver.rb` | v0.3.2 |
-| acemq-dotnet-amqp | `tests/AceMq.Amqp.TckDriver` | v0.3.2 |
-| acemq-go-amqp | `internal/tckdriver` | v0.3.2 |
+| acemq-java-amqp | `acemq-amqp-test/src/test/java/org/acemq/amqp/tck` | v0.3.3 |
+| acemq-python-amqp | `tests/tck/driver.py` | v0.3.3 |
+| acemq-ruby-amqp | `spec/tck/driver.rb` | v0.3.3 |
+| acemq-dotnet-amqp | `tests/AceMq.Amqp.TckDriver` | v0.3.3 |
+| acemq-go-amqp | `internal/tckdriver` | v0.3.3 |
 
 ## Licence
 

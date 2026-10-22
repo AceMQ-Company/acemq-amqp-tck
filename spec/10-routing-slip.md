@@ -58,7 +58,7 @@ consumer or by republishing to the step's queue, is not a default.
 
 ### AMQP-SLIP-005 (MUST) A hop carries the headers it does not own
 
-Cases: SLIP-004, SLIP-005 (pending)
+Cases: SLIP-004, SLIP-005
 
 The message a step publishes onwards carries every header of the message it
 handled that the slip does not change: application headers (a tenant, a trace
