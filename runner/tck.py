@@ -25,8 +25,10 @@ import os
 import queue
 import re
 import secrets
+import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import urllib.error
@@ -37,6 +39,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 VHOST = "%2F"
 REQUIREMENT = re.compile(r"\bAMQP-[A-Z]+-\d{3}\b")
+# AMQP-CLAIM-001: magic, version, then 0x00 (payload inline) or 0x01 (a store key).
+CLAIM_INLINE = b"\xac\x01\x00"
+CLAIM_CHECKED = b"\xac\x01\x01"
 
 
 class CaseFailed(Exception):
@@ -62,7 +67,8 @@ def match(actual, pattern, root=None, where="$"):
     A dict pattern is a subset match. A dict whose keys all start with ``$`` is
     an operator: $regex, $type, $gt, $gte, $lt, $lte, $sameAs (a /-separated
     path from the root of the thing being matched), $absent, $oneOf, $contains,
-    $json (a string that parses as JSON matching the pattern).
+    $json (a string that parses as JSON matching the pattern), $size (a list of
+    exactly that many elements).
     """
     root = actual if root is None else root
     if isinstance(pattern, dict) and pattern and all(k.startswith("$") for k in pattern):
@@ -126,6 +132,9 @@ def operator(op, want, actual, root):
         except ValueError:
             parsed = None
         return match(parsed, want) if parsed is not None else f"{actual!r} is not a JSON string"
+    if op == "$size":
+        ok = isinstance(actual, list) and len(actual) == want
+        return None if ok else f"{actual!r} does not have {want} elements"
     if op == "$contains":
         if not isinstance(actual, list):
             return f"{actual!r} is not a list"
@@ -153,8 +162,17 @@ def self_test():
     assert match([{"n": "a"}, {"n": "b", "t": 1}], {"$contains": [{"n": "b"}, {"n": "a"}]}) is None
     assert match('{"steps": [{"r": "t"}], "done": []}', {"$json": {"steps": [{"r": "t"}]}}) is None
     assert match('{"steps": []}', {"$json": {"steps": [{"r": "t"}]}})
+    assert match([1, 2, 3], {"$size": 3}) is None and match([1, 2], {"$size": 3}) and match("abc", {"$size": 3})
     assert match("not json{", {"$json": {}}) and match(7, {"$json": {}})
     assert substitute({"q": "${ns}.x", "n": ["${ns}"]}, {"ns": "t"}) == {"q": "t.x", "n": ["t"]}
+    with tempfile.TemporaryDirectory() as store:
+        Path(store, "k1").write_bytes(b'{"id": "c"}')
+        framed = lambda raw: {"body": {"$bytes": base64.b64encode(raw).decode()}}  # noqa: E731
+        assert unframe(framed(CLAIM_CHECKED + b"k1"), store)["payload"] == {"id": "c"}
+        assert unframe(framed(CLAIM_CHECKED + b"gone"), store)["payload"] == {"$missing": "gone"}
+        assert unframe(framed(CLAIM_INLINE + b'{"id": "i"}'), store) == \
+            {"frame": "inline", "key": None, "payload": {"id": "i"}}
+        assert unframe({"body": {"id": "plain"}}, store)["frame"] == "none"
     assert drained([{"body": {"id": "b"}}, {"body": {"id": "a"}}, {"body": {"id": "b"}}, {"body": "raw"}]) == \
         {"count": 4, "ids": ["", "a", "b", "b"]}
     # A management API that drops the connection fails the case after three tries; it never ends the run.
@@ -254,11 +272,15 @@ class Broker:
                        missing_ok=True)
         return None if got is None else [normalise(m) for m in got]
 
-    def publish(self, exchange, routing_key, body, properties=None):
-        payload = body if isinstance(body, str) else json.dumps(body)
+    def publish(self, exchange, routing_key, body, properties=None, raw=None):
+        """Publishes ``body`` as JSON text, or the bytes ``raw`` exactly."""
+        if raw is not None:
+            payload, encoding = base64.b64encode(raw).decode(), "base64"
+        else:
+            payload, encoding = (body if isinstance(body, str) else json.dumps(body)), "string"
         result = self.api("POST", f"exchanges/{VHOST}/{q(exchange or 'amq.default')}/publish", {
             "properties": properties or {}, "routing_key": routing_key,
-            "payload": payload, "payload_encoding": "string"})
+            "payload": payload, "payload_encoding": encoding})
         return result["routed"]
 
 
@@ -271,6 +293,23 @@ def drained(messages):
     sorted, so a duplicate or a missing one shows and arrival order does not."""
     ids = sorted(str(m["body"].get("id")) if isinstance(m["body"], dict) else "" for m in messages)
     return {"count": len(messages), "ids": ids}
+
+
+def unframe(message, directory):
+    """What an ``expect: claimCheck`` matches: the claim-check framing of a
+    message's body (AMQP-CLAIM-001) and the payload it stands for -- read from
+    ``directory``, the filesystem store's directory, when the body is a key."""
+    body = message["body"]
+    raw = base64.b64decode(body["$bytes"]) if isinstance(body, dict) and set(body) == {"$bytes"} else None
+    if raw is None or raw[:3] not in (CLAIM_INLINE, CLAIM_CHECKED):
+        return {"frame": "none", "key": None, "payload": body}
+    rest = raw[3:]
+    if raw[:3] == CLAIM_INLINE:
+        return {"frame": "inline", "key": None, "payload": json.loads(rest)}
+    key = rest.decode("utf-8")
+    stored = Path(directory, key)
+    payload = json.loads(stored.read_bytes()) if stored.is_file() else {"$missing": key}
+    return {"frame": "checked", "key": key, "payload": payload}
 
 
 def normalise(raw):
@@ -478,9 +517,17 @@ class Run:
         elif op == "clearPolicy":
             b.api("DELETE", f"policies/{VHOST}/{q(step['name'])}", missing_ok=True)
         elif op == "publish":
-            routed = b.publish(step.get("exchange", ""), step["routingKey"], step["body"], step.get("properties"))
+            # claimKey: the body is a claim check for that key (AMQP-CLAIM-001), as another library wrote it.
+            raw = CLAIM_CHECKED + step["claimKey"].encode() if "claimKey" in step else None
+            routed = b.publish(step.get("exchange", ""), step["routingKey"], step.get("body"),
+                               step.get("properties"), raw=raw)
             if not routed and step.get("mustRoute", True):
                 raise CaseFailed("the broker routed the publish nowhere")
+        elif op == "storeClaim":
+            # Plays another library's filesystem claim-check store: the payload, as JSON, in a
+            # file named by the key in the store's directory (AMQP-CLAIM-002).
+            Path(step["directory"]).mkdir(parents=True, exist_ok=True)
+            Path(step["directory"], step["key"]).write_text(json.dumps(step["body"]))
         elif op == "closeConnections":
             # Every client connection on the broker: the runner has none of its
             # own, so this is the driver's, cut the way a network failure cuts it.
@@ -562,6 +609,17 @@ class Run:
             if problem:
                 # Taken off the queue by looking at it, so polling again would
                 # report "no message" and hide what was wrong with this one.
+                raise CaseFailed(f"{problem}\n        message: {json.dumps(message)[:1500]}")
+            return None
+        if kind == "claimCheck":
+            message = b.get(step["queue"])
+            if message is None:
+                return f"no message on {step['queue']}"
+            seen = dict(unframe(message, step["directory"]), headers=message["headers"],
+                        properties=message["properties"])
+            self.log(f"  claim check: {json.dumps(seen)[:600]}")
+            problem = match(seen, step["match"])
+            if problem:
                 raise CaseFailed(f"{problem}\n        message: {json.dumps(message)[:1500]}")
             return None
         if kind == "drain":
@@ -719,6 +777,9 @@ def main():
         for case in load_cases(args.only, args.pending):
             names = {"ns": f"tck.{case['id'].lower()}.{secrets.token_hex(3)}"}
             names["nsre"] = re.escape(names["ns"])
+            # ${tmp}: a directory of the case's own on this machine, which the driver shares
+            # (a filesystem claim-check store); removed after the case.
+            names["tmp"] = tempfile.mkdtemp(prefix="acemq-tck-") if "${tmp}" in json.dumps(case) else ""
             case = substitute(case, names)
             needed = {s["driver"] for s in case["steps"] if "driver" in s}
             needed |= {s["call"]["op"] for s in case["steps"] if s.get("expect") == "driver"}
@@ -732,6 +793,8 @@ def main():
                     status, detail = "PASS", ""
                 except CaseFailed as e:
                     status, detail = "FAIL", str(e)
+            if names["tmp"]:
+                shutil.rmtree(names["tmp"], ignore_errors=True)
             seconds = time.monotonic() - started
             results.append({"id": case["id"], "requirements": case["requirements"], "status": status,
                             "detail": detail, "seconds": round(seconds, 1)})

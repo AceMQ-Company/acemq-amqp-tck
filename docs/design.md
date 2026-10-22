@@ -106,20 +106,28 @@ One JSON file per case in `cases/`:
 - A step is exactly one of `driver` (an op sent to the driver; `as` records
   its outcome for a later `expect: step`), `broker` (done by the runner:
   `declareQueue`, `declareExchange`, `bind`, `policy`, `clearPolicy`,
-  `publish`, `respond`), `expect` (`message`, `depth`, `consumers`, `queue`,
-  `queueAbsent`, `noNewQueues`, `noMessagesIn`, `step`, `driver`, `drain`) or
-  `sleep`. `drain` takes every ready message off a queue with a basic.get and
+  `publish`, `respond`, `storeClaim`), `expect` (`message`, `depth`,
+  `consumers`, `queue`, `queueAbsent`, `noNewQueues`, `noMessagesIn`, `step`,
+  `driver`, `drain`, `claimCheck`) or `sleep`. A `publish` with `claimKey`
+  sends the claim-check framing and that key instead of a JSON body;
+  `storeClaim` writes a payload into a filesystem claim-check store the way
+  another library would; `claimCheck` takes one message and matches
+  `{"frame", "key", "payload", "headers", "properties"}`, with the payload read
+  from the store when the body is a key. `drain` takes every ready message off a queue with a basic.get and
   matches `{"count", "ids"}` (body ids, sorted): exact at that instant, where
   `depth` reads a statistic that can be a stats interval old, so it is the one
   for "right after the driver returned". It consumes, so it is never polled.
 - `${ns}` is a fresh namespace per run of a case (`tck.<case>.<random>`), and
-  `${nsre}` the same escaped for a regular expression. Everything a case
+  `${nsre}` the same escaped for a regular expression. `${tmp}` is a directory
+  of the case's own on the machine the runner and the driver share, removed
+  after the case. Everything a case
   creates, and everything created on the broker while it ran, is deleted
   after it.
 - `match` is a subset match with a few operators: `$regex`, `$type`, `$gt`,
   `$gte`, `$lt`, `$lte`, `$sameAs` (another field of the same message),
   `$absent`, `$oneOf`, `$contains`, `$json` (a string that parses as JSON
-  matching the pattern, for `acemq-routing-slip`).
+  matching the pattern, for `acemq-routing-slip`), `$size` (a list of exactly
+  that many elements).
 - `expect` with `withinMs` polls until it holds or the time is up — the only
   way a timing-dependent outcome is asserted.
 

@@ -128,6 +128,46 @@ inside `follow_slip`. The driver calls nothing that sets a retry policy: no
 `StepRetry` (Go), `retry_policy:` (Ruby) or `retry=` (Python), and no
 connection-wide default either.
 
+### Claim check, outbox and consumer groups
+
+| op | arguments | result | what it does |
+|---|---|---|---|
+| `claimCheck` | `directory`, `thresholdBytes` | `{}` | reopen this case's connection (same origin, same recorder) with the library's claim-check codec wrapping its JSON codec, over the library's filesystem claim-check store at `directory`, offloading at or above `thresholdBytes`. Every later `publish` and `consume` in the case goes through it. `end` puts the plain connection back for the next case |
+| `outbox` | `exchange`, `routingKey`, `body`, `envelope`? | `{"id"}` | record `body` through the library's outbox record helper (its JSON codec, `envelope` as for `publish`) into the library's in-memory outbox store, and on first use in a case start one relay on that store with the library's default settings, which `end` closes. `id` is the record's id. Answer once the record is stored, not once it is published |
+| `consumeGroup` | `queue`, `handle`, `size`, `prefetch`, `behaviour`? | `{}` | `consume` with no `retry`, as a consumer group of `size` through the library's consumer-group API, each member with `prefetch`. Deliveries are counted under `handle` exactly like `consume` |
+
+Java `ClaimCheckCodec.wrapping(new JsonCodec(), new FilesystemClaimCheckStore(dir), n)`
+through `AceMq.connect(config, telemetry, codec)`; `OutboxRecord.of(exchange,
+routingKey, envelope, json)` and `new OutboxRelay(mq, store).start()` (Java
+ships no in-memory outbox store, so the driver's is a map behind
+`OutboxStore`); `mq.consumeGroup(queue, T, handler).concurrency(n).prefetch(p).start()`.
+.NET `ClaimCheckCodec.Wrapping(new JsonCodec(), new FilesystemClaimCheckStore(dir), n)`
+through `AceMqConnection.ConnectAsync(config, codec, ct)`;
+`OutboxRecord.For(mq, exchange, routingKey, payload, envelope)`,
+`InMemoryOutboxStore` and `mq.Outbox(store).Start()`;
+`ConsumerGroup.StartAsync<T>(mq, queue, n, ConsumerOptions.Prefetch(p), handler)`.
+Python `ClaimCheckCodec(JsonCodec(), FilesystemClaimCheckStore(dir), threshold=n)`
+through `connect(url, codec=...)`; `record(mq, exchange, routing_key, payload, envelope=...)`,
+`InMemoryOutboxStore` and `OutboxRelay(mq, store).start()`;
+`ConsumerGroup.start(mq, queue, n, handler, prefetch=p)`. Ruby
+`Patterns::ClaimCheckCodec.wrapping(JSONCodec.new, Patterns::FilesystemClaimCheckStore.new(dir), threshold: n)`
+through `Connection.open(url, codec: ...)`; `Patterns.record(mq, payload, to:, exchange:, **fields)`,
+`Patterns::InMemoryOutboxStore` and `Patterns::OutboxRelay.new(mq, store).start`;
+`Patterns::ConsumerGroup.new(mq, queue, size: n, prefetch: p) { ... }`. Go
+`patterns.ClaimCheck(acemq.JSONCodec{}, patterns.NewFilesystemClaimCheckStore(dir), patterns.OffloadAbove(n))`
+through `acemq.WithCodec`; `patterns.Record[T](conn, exchange, routingKey, payload, opts...)`,
+`patterns.NewInMemoryOutboxStore()` and `patterns.NewOutboxRelay(conn, store).Start(ctx)`;
+`patterns.NewConsumerGroup(ctx, conn, queue, n, handler, acemq.Prefetch(p))`.
+Before the group starts, the driver declares the queue as `consume` does with
+no `retry`.
+
+### Shutdown
+
+`end` is how an application shuts down: the driver closes what the case opened
+through the library's own close calls with their default drain, never by
+cutting the connection, so a case may call `end` as a step and check how long
+it took (CONSUME-002) and what it left on the broker.
+
 Arguments a driver does not recognise are ignored, so a case may add an
 optional argument without breaking older drivers; a new **op** is a new TCK
 release, on the 0.3.x line like every other change, and its cases start in

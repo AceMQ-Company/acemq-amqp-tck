@@ -55,3 +55,15 @@ kept (the route headers and AMQP-ENV-014 included), and the handler is not
 called for it again. Nothing is published to the next step. A retry delay the
 pipeline applies by default is not a retry policy: retrying for ever, in the
 consumer or by republishing to the step's queue, is not a default.
+
+### AMQP-SLIP-005 (MUST) A hop carries the headers it does not own
+
+Cases: SLIP-004, SLIP-005 (pending)
+
+The message a step publishes onwards carries every header of the message it
+handled that the slip does not change: application headers (a tenant, a trace
+context, anything outside the `x-acemq-` namespace) and `x-acemq-` headers the
+library does not know (AMQP-ENV-014), unchanged, in both forms. A hop is the
+message moving on, not a new message written from the library's envelope
+fields: a step written in one language must not strip what a step in another
+language, or the service that started the run, put on it.
