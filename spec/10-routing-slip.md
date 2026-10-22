@@ -70,7 +70,7 @@ language, or the service that started the run, put on it.
 
 ### AMQP-SLIP-006 (MUST) A hop keeps the run's first-seen
 
-Cases: SLIP-006, SLIP-007 (pending)
+Cases: SLIP-006, SLIP-007
 
 The message a step publishes onwards carries the `x-acemq-first-seen` of the
 message it handled, unchanged, in both forms: first-seen is set once, by the
