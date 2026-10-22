@@ -67,3 +67,13 @@ library does not know (AMQP-ENV-014), unchanged, in both forms. A hop is the
 message moving on, not a new message written from the library's envelope
 fields: a step written in one language must not strip what a step in another
 language, or the service that started the run, put on it.
+
+### AMQP-SLIP-006 (MUST) A hop keeps the run's first-seen
+
+Cases: SLIP-006, SLIP-007 (pending)
+
+The message a step publishes onwards carries the `x-acemq-first-seen` of the
+message it handled, unchanged, in both forms: first-seen is set once, by the
+publish that started the run (AMQP-ENV-007), and a hop is not a first publish.
+`acemq.pipeline.run.duration` is measured from it, so it covers the whole run,
+not the last hop.

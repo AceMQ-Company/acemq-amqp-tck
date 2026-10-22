@@ -9,7 +9,12 @@ They are kept out of the default run, so that a tagged TCK is one every
 library passes, and run with `--pending`. A pending case moves into `cases/`
 — and the TCK takes a new version — once all five pass it.
 
-None at the moment. The M7 set — SLIP-004, SLIP-005, CLAIM-001, CLAIM-002,
+SLIP-006 and SLIP-007 (AMQP-SLIP-006, a hop keeps the run's
+`x-acemq-first-seen`, in the route and itinerary forms). Python's pipeline hop
+starts a new first-seen, so `acemq.pipeline.run.duration` measures only the
+last hop; the other four are being checked for the same.
+
+The M7 set — SLIP-004, SLIP-005, CLAIM-001, CLAIM-002,
 OUTBOX-001, OUTBOX-002, CONSUME-001 and CONSUME-002 (claim check, outbox
 relay, consumer groups, pipeline-hop headers and shutdown drain) — moved into
 `cases/` in v0.3.3, once Java 0.7.19, .NET 0.7.17, Python 0.7.16, Ruby 0.7.18
