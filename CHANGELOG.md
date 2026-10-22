@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Added
+
+- Pending cases SLIP-006 and SLIP-007 (`cases/pending/`): every pipeline hop,
+  in the route and the itinerary form, carries the run's `x-acemq-first-seen`
+  unchanged, so `acemq.pipeline.run.duration` measures the whole run.
+- Spec: AMQP-SLIP-006 (a hop keeps the run's first-seen).
+
 ## [0.3.3] - 2026-10-22
 
 ### Added

@@ -1,0 +1,25 @@
+{
+  "id": "SLIP-007",
+  "title": "every pipeline hop in the itinerary form carries the run's x-acemq-first-seen unchanged",
+  "requirements": ["AMQP-SLIP-006", "AMQP-ENV-007"],
+  "comment": [
+    "SLIP-002's itinerary, entering step a with a first-seen well in the past and sent through b to the runner's own queue: what arrives there was published by b from what a published, so a first-seen restarted by either hop shows."
+  ],
+  "steps": [
+    {"driver": "pipeline", "name": "${ns}.p", "steps": ["a", "b", "c"], "handle": "s1"},
+    {"expect": "consumers", "queue": "${ns}.p.a", "count": 1, "withinMs": 15000},
+    {"expect": "consumers", "queue": "${ns}.p.b", "count": 1, "withinMs": 15000},
+    {"broker": "declareQueue", "queue": "${ns}.tap"},
+    {"broker": "publish", "exchange": "${ns}.p", "routingKey": "a", "body": {"id": "fs-i"},
+     "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "fs-i",
+       "headers": {"x-acemq-id": "fs-i", "x-acemq-attempt": 1, "x-acemq-correlation": "corr-fsi",
+         "x-acemq-first-seen": 1761134400000,
+         "acemq-routing-slip": "{\"steps\":[{\"exchange\":\"${ns}.p\",\"routingKey\":\"a\",\"name\":\"a\"},{\"exchange\":\"${ns}.p\",\"routingKey\":\"b\",\"name\":\"b\"},{\"exchange\":\"\",\"routingKey\":\"${ns}.tap\",\"name\":\"tap\"}]}"}}},
+    {"expect": "message", "queue": "${ns}.tap", "withinMs": 15000, "match": {
+      "body": {"id": "fs-i"},
+      "headers": {"x-acemq-first-seen": 1761134400000,
+        "acemq-routing-slip": {"$json": {"steps": [{"exchange": "", "routingKey": "${ns}.tap"}]}}}
+    }},
+    {"expect": "noMessagesIn", "pattern": "^${nsre}\\.p\\..*\\.(dlq|parked)$"}
+  ]
+}
