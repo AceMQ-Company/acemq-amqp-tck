@@ -4,7 +4,7 @@
   "requirements": ["AMQP-SLIP-004", "AMQP-RETRY-008", "AMQP-RETRY-005", "AMQP-ENV-014"],
   "comment": [
     "RETRY-004 for a pipeline step: the pipeline op with no retry configured anywhere, and step b's own handler failing. The message goes in at step b (position 1), as a replay into the middle of a run would, so the headers checked on the dead letter are the ones the step received and not what an earlier hop chose to carry.",
-    "Read from the code at Java 0.7.17, .NET 0.7.15, Python 0.7.14, Ruby 0.7.16 and Go 0.9.11: .NET's pipeline step answers a failure with Ack.Retry(5s) of its own, which with no policy is waited out and republished to the step queue for ever. Java, Go, Python and Ruby treat it as an ordinary consumer failure under no policy and dead-letter once."
+    "Java, Go, Python and Ruby treat it as an ordinary consumer failure under no policy and dead-letter once. Before .NET 0.7.16: .NET's pipeline step answered a failure with Ack.Retry(5s) of its own, which with no policy was waited out and republished to the step queue for ever."
   ],
   "steps": [
     {"driver": "pipeline", "name": "${ns}.p", "steps": ["a", "b", "c"], "handle": "s1",

@@ -69,7 +69,7 @@ nacked or returned, the delivery is requeued, never rejected without requeue
 
 ### AMQP-RETRY-008 (MUST) A consumer given no retry policy makes one attempt
 
-Cases: RETRY-004, SLIP-003 (pending)
+Cases: RETRY-004, SLIP-003
 
 A consumer started without a retry policy treats a handler failure as
 exhausted after the first attempt: the message is dead-lettered to

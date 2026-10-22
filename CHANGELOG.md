@@ -2,15 +2,20 @@
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-10-21
+
 ### Added
 
+- SLIP-003 is in the default run (30 cases). Every library passes it: Java
+  0.7.18, .NET 0.7.16, Python 0.7.15, Ruby 0.7.17 and Go 0.9.12. `spec/` drops
+  its "(pending)" markers.
 - Spec: AMQP-SLIP-004 (a pipeline step whose own handler fails, in a pipeline
   with no retry policy, is attempted once and dead-lettered to
   `{pipeline}.{step}.dlq` with every header kept: AMQP-RETRY-008 for pipeline
   steps).
-- SLIP-003 (`cases/pending/slip-003-failing-step-no-policy-one-attempt.json`),
-  pending: suspected to fail on .NET, whose pipeline step retries every 5s for
-  ever when no policy is configured.
+- SLIP-003 (`cases/slip-003-failing-step-no-policy-one-attempt.json`). .NET
+  failed it before 0.7.16: its pipeline step retried every 5s for ever when no
+  policy was configured.
 - Driver op `pipeline` takes an optional `behaviour`, a map from step name to
   `consume`'s behaviour (`failFirst`, `sleepMs`); see docs/driver-contract.md.
 

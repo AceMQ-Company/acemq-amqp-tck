@@ -45,7 +45,7 @@ form it arrived in: a route arrives as a route and leaves as one.
 
 ### AMQP-SLIP-004 (MUST) A failing step with no retry policy makes one attempt
 
-Cases: SLIP-003 (pending)
+Cases: SLIP-003
 
 AMQP-RETRY-008 for a pipeline step. A step whose own handler fails, in a
 pipeline where no retry policy is configured for that step or the pipeline,
