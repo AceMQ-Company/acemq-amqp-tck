@@ -1,0 +1,27 @@
+{
+  "id": "SLIP-009",
+  "title": "a pipeline hop in the itinerary form publishes a new x-acemq-id, caused by the handled message, in the same correlation",
+  "requirements": ["AMQP-SLIP-007", "AMQP-SLIP-003"],
+  "comment": [
+    "An itinerary entering step a as id-i and sent straight to the runner's own queue: what arrives there is the hop a published, so it must carry an x-acemq-id of its own (anything but id-i), x-acemq-causation id-i and the correlation unchanged.",
+    "The regex (?!id-i$) is 'not the handled id'; any non-empty id passes."
+  ],
+  "steps": [
+    {"driver": "pipeline", "name": "${ns}.p", "steps": ["a", "b", "c"], "handle": "s1"},
+    {"expect": "consumers", "queue": "${ns}.p.a", "count": 1, "withinMs": 15000},
+    {"broker": "declareQueue", "queue": "${ns}.tap"},
+    {"broker": "publish", "exchange": "${ns}.p", "routingKey": "a", "body": {"id": "id-i"},
+     "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "id-i",
+       "headers": {"x-acemq-id": "id-i", "x-acemq-attempt": 1, "x-acemq-correlation": "corr-idi",
+         "acemq-routing-slip": "{\"steps\":[{\"exchange\":\"${ns}.p\",\"routingKey\":\"a\",\"name\":\"a\"},{\"exchange\":\"\",\"routingKey\":\"${ns}.tap\",\"name\":\"tap\"}]}"}}},
+    {"expect": "message", "queue": "${ns}.tap", "withinMs": 15000, "match": {
+      "body": {"id": "id-i"},
+      "headers": {
+        "acemq-routing-slip": {"$json": {"steps": [{"exchange": "", "routingKey": "${ns}.tap"}]}},
+        "x-acemq-id": {"$type": "string", "$regex": "^(?!id-i$)."},
+        "x-acemq-causation": "id-i",
+        "x-acemq-correlation": "corr-idi"}
+    }},
+    {"expect": "noMessagesIn", "pattern": "^${nsre}\\.p\\..*\\.(dlq|parked)$"}
+  ]
+}

@@ -9,7 +9,12 @@ They are kept out of the default run, so that a tagged TCK is one every
 library passes, and run with `--pending`. A pending case moves into `cases/`
 — and the TCK takes a new version — once all five pass it.
 
-None at the moment. SLIP-006 and SLIP-007 (AMQP-SLIP-006, a hop keeps the
+SLIP-008 and SLIP-009 (AMQP-SLIP-007, a hop publishes a new `x-acemq-id`
+with `x-acemq-causation` the handled message's id and the correlation
+unchanged, in the route and itinerary forms). Python, Ruby and Go already do
+this; the Java and .NET hops carry the handled message's id onwards.
+
+SLIP-006 and SLIP-007 (AMQP-SLIP-006, a hop keeps the
 run's `x-acemq-first-seen`, in the route and itinerary forms) moved into
 `cases/` in v0.3.4, once Java 0.7.20, .NET 0.7.18, Python 0.7.17, Ruby 0.7.19
 and Go 0.9.14 passed them. Before those versions, the Python, Ruby and Go
