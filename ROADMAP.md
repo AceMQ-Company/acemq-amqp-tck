@@ -9,10 +9,15 @@ They are kept out of the default run, so that a tagged TCK is one every
 library passes, and run with `--pending`. A pending case moves into `cases/`
 — and the TCK takes a new version — once all five pass it.
 
-SLIP-008 and SLIP-009 (AMQP-SLIP-007, a hop publishes a new `x-acemq-id`
-with `x-acemq-causation` the handled message's id and the correlation
-unchanged, in the route and itinerary forms). Python, Ruby and Go already do
-this; the Java and .NET hops carry the handled message's id onwards.
+No divergence is pending at the moment. SLIP-008 and SLIP-009
+(AMQP-SLIP-007, a hop publishes a new `x-acemq-id` with `x-acemq-causation`
+the handled message's id and the correlation unchanged, in the route and
+itinerary forms) are in `cases/` on `main` for the next tag. All five
+libraries pass them on their `main` branches; the Java and .NET fixes are not
+released yet, so the next TCK tag ships in the same release round as the Java
+and .NET versions that carry them. Before those versions, the Java and .NET
+hops carried the handled message's id onwards; Python, Ruby and Go already
+minted a new one.
 
 AI-001 to AI-007 (`spec/14-ai.md`, a model call behind a queue) are a
 different kind of pending: they are not a divergence. They apply only to a
