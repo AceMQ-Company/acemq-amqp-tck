@@ -80,7 +80,7 @@ not the last hop.
 
 ### AMQP-SLIP-007 (MUST) A hop is a new message, caused by the one handled
 
-Cases: SLIP-008, SLIP-009 (pending)
+Cases: SLIP-008, SLIP-009
 
 The message a step publishes onwards has an `x-acemq-id` of its own, not the
 handled message's, in both forms; its `x-acemq-causation` is the handled

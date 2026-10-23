@@ -4,10 +4,12 @@
 
 ### Added
 
-- Pending cases SLIP-008 and SLIP-009 (`cases/pending/`): a pipeline hop, in
-  the route and the itinerary form, publishes a new `x-acemq-id`, with
-  `x-acemq-causation` set to the handled message's id and the correlation
-  unchanged. Python, Ruby and Go pass; Java and .NET carry the handled id on.
+- Cases SLIP-008 and SLIP-009, in the default run (42 cases): a pipeline
+  hop, in the route and the itinerary form, publishes a new `x-acemq-id`,
+  with `x-acemq-causation` set to the handled message's id and the
+  correlation unchanged. All five libraries pass them on `main`; Java and
+  .NET needed a change (unreleased), Python, Ruby and Go already did this.
+  `spec/` has no "(pending)" markers for them.
 - Spec: AMQP-SLIP-007 (a hop is a new message, caused by the one handled).
 - Spec `14-ai.md`: AMQP-AI-001 to AMQP-AI-007, a model call behind a queue
   (token counts, rate limit pauses and retries, timeout retries, bad request
