@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Added
+
+- Pending cases SLIP-008 and SLIP-009 (`cases/pending/`): a pipeline hop, in
+  the route and the itinerary form, publishes a new `x-acemq-id`, with
+  `x-acemq-causation` set to the handled message's id and the correlation
+  unchanged. Python, Ruby and Go pass; Java and .NET carry the handled id on.
+- Spec: AMQP-SLIP-007 (a hop is a new message, caused by the one handled).
+
 ## [0.3.4] - 2026-10-22
 
 ### Added

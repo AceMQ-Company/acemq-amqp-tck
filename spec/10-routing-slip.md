@@ -77,3 +77,15 @@ message it handled, unchanged, in both forms: first-seen is set once, by the
 publish that started the run (AMQP-ENV-007), and a hop is not a first publish.
 `acemq.pipeline.run.duration` is measured from it, so it covers the whole run,
 not the last hop.
+
+### AMQP-SLIP-007 (MUST) A hop is a new message, caused by the one handled
+
+Cases: SLIP-008, SLIP-009 (pending)
+
+The message a step publishes onwards has an `x-acemq-id` of its own, not the
+handled message's, in both forms; its `x-acemq-causation` is the handled
+message's `x-acemq-id` and its `x-acemq-correlation` is the handled message's,
+unchanged. Each hop is then one link in the run's causation chain, and
+idempotency (AMQP-IDEM) at the next step sees each hop as the distinct message
+it is. The id is the one thing a hop does not carry over: every other header
+moves on as AMQP-SLIP-005 and AMQP-SLIP-006 say.
