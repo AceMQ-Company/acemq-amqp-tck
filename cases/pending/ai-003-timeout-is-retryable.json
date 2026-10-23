@@ -1,0 +1,14 @@
+{
+  "id": "AI-003",
+  "title": "a model that does not answer in time is timed_out and the message is asked again through the retry ladder",
+  "requirements": ["AMQP-AI-003"],
+  "steps": [
+    {"broker": "model", "script": [{"hangMs": 5000}, {"reply": "fine", "inputTokens": 3, "outputTokens": 2}]},
+    {"driver": "aiConsume", "queue": "${ns}.q", "handle": "h", "model": "${model}", "api": "ollama", "prefetch": 1, "retry": {"maxAttempts": 3, "delayMs": 200}, "timeoutMs": 1000},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.q", "body": {"id": "a3"}, "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "a3", "headers": {"x-acemq-id": "a3", "x-acemq-attempt": 1, "x-acemq-correlation": "corr-a3"}}},
+    {"expect": "driver", "call": {"op": "handled", "handle": "h"}, "match": {"counts": {"a3": 1}}, "withinMs": 20000},
+    {"expect": "model", "match": {"calls": 2}},
+    {"expect": "driver", "call": {"op": "metrics"}, "match": {"samples": {"$contains": [{"name": "acemq.ai.request.duration", "tags": {"queue": "${ns}.q", "outcome": "timed_out"}}, {"name": "acemq.ai.request.duration", "tags": {"queue": "${ns}.q", "outcome": "answered"}}]}}},
+    {"expect": "noMessagesIn", "pattern": "^${nsre}\\.q\\.(dlq|parked)$"}
+  ]
+}

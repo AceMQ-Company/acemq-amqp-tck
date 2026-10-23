@@ -1,0 +1,15 @@
+{
+  "id": "AI-005",
+  "title": "a refusal is outcome refused and a dead-letter saying so, after one call",
+  "requirements": ["AMQP-AI-005"],
+  "steps": [
+    {"broker": "model", "script": [{"refusal": "I cannot help with that.", "inputTokens": 4, "outputTokens": 1}]},
+    {"driver": "aiConsume", "queue": "${ns}.q", "handle": "h", "model": "${model}", "api": "openai", "prefetch": 1, "retry": {"maxAttempts": 3, "delayMs": 200}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.q", "body": {"id": "a5"}, "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "a5", "headers": {"x-acemq-id": "a5", "x-acemq-attempt": 1, "x-acemq-correlation": "corr-a5"}}},
+    {"expect": "message", "queue": "${ns}.q.dlq", "withinMs": 15000, "match": {"body": {"id": "a5"}, "headers": {"x-acemq-id": "a5", "x-acemq-error": {"$regex": "(?i)refus"}}}},
+    {"sleep": 2000},
+    {"expect": "model", "match": {"calls": 1}},
+    {"expect": "driver", "call": {"op": "handled", "handle": "h"}, "match": {"counts": {"a5": {"$absent": true}}}},
+    {"expect": "driver", "call": {"op": "metrics"}, "match": {"samples": {"$contains": [{"name": "acemq.ai.request.duration", "tags": {"queue": "${ns}.q", "outcome": "refused"}}]}}}
+  ]
+}

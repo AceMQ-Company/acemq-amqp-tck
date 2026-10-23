@@ -23,6 +23,11 @@ inputs:
   only:
     description: Space-separated regular expressions on case ids; empty runs every case.
     default: ""
+  pending:
+    description: >
+      "true" also runs cases/pending/. With `only`, how an adapter library runs
+      the cases of its own area (acemq-java-amqp-ai: only AI, pending true).
+    default: "false"
 
 runs:
   using: composite
@@ -46,9 +51,11 @@ runs:
         ACEMQ_TCK_CTL: docker exec acemq-tck-broker rabbitmqctl
         TCK_DRIVER: ${{ inputs.driver }}
         TCK_ONLY: ${{ inputs.only }}
+        TCK_PENDING: ${{ inputs.pending }}
       run: |
         only=()
         for pattern in $TCK_ONLY; do only+=(--only "$pattern"); done
+        if [ "$TCK_PENDING" = "true" ]; then only+=(--pending); fi
         python3 "$GITHUB_ACTION_PATH/runner/tck.py" --driver "$TCK_DRIVER" "${only[@]}" \
           --report "$RUNNER_TEMP/acemq-tck-report.json"
 

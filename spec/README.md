@@ -38,6 +38,7 @@ behaviour is observable from outside the library, at least one case in
 | [11-claim-check.md](11-claim-check.md) | payloads kept off the broker | `AMQP-CLAIM` |
 | [12-outbox.md](12-outbox.md) | messages recorded now, published by a relay | `AMQP-OUTBOX` |
 | [13-consumers.md](13-consumers.md) | consumer groups and shutdown | `AMQP-CONSUME` |
+| [14-ai.md](14-ai.md) | a model call behind a queue (AI adapters only) | `AMQP-AI` |
 
 ## Terms
 

@@ -1,0 +1,20 @@
+{
+  "id": "AI-007",
+  "title": "an exhausted token budget pauses the consumer, and the refilled window resumes it",
+  "requirements": ["AMQP-AI-007"],
+  "comment": ["150 tokens per 8s, 100 a call, maxOutputTokens 10, prefetch 1: after the second call nothing is left (< 1 x 10), so the consumer pauses until the window refills and b3 waits for it, then is handled. The window starts when the consumer does, which is why the messages are published at once rather than after the broker shows the consumer."],
+  "steps": [
+    {"broker": "model", "script": [{"reply": "fine", "inputTokens": 60, "outputTokens": 40}]},
+    {"driver": "aiConsume", "queue": "${ns}.q", "handle": "h", "model": "${model}", "api": "ollama", "prefetch": 1, "retry": {"maxAttempts": 3, "delayMs": 200}, "budget": {"tokens": 150, "windowMs": 8000}, "maxOutputTokens": 10},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.q", "body": {"id": "b1"}, "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "b1", "headers": {"x-acemq-id": "b1", "x-acemq-attempt": 1, "x-acemq-correlation": "corr-b1"}}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.q", "body": {"id": "b2"}, "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "b2", "headers": {"x-acemq-id": "b2", "x-acemq-attempt": 1, "x-acemq-correlation": "corr-b2"}}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.q", "body": {"id": "b3"}, "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "b3", "headers": {"x-acemq-id": "b3", "x-acemq-attempt": 1, "x-acemq-correlation": "corr-b3"}}},
+    {"expect": "model", "match": {"calls": 2}, "withinMs": 3000},
+    {"comment": "well inside the window: b3 is waiting and the model hears nothing", "sleep": 4000},
+    {"expect": "model", "match": {"calls": 2}},
+    {"expect": "driver", "call": {"op": "handled", "handle": "h"}, "match": {"counts": {"b1": 1, "b2": 1, "b3": 1}}, "withinMs": 15000},
+    {"expect": "model", "match": {"calls": 3, "gapsMs": [{"$gte": 0}, {"$gte": 4000}]}},
+    {"expect": "consumers", "queue": "${ns}.q", "count": 1, "withinMs": 15000},
+    {"expect": "noMessagesIn", "pattern": "^${nsre}\\.q\\.(dlq|parked)$"}
+  ]
+}

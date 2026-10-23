@@ -175,6 +175,24 @@ def self_test():
         assert unframe({"body": {"id": "plain"}}, store)["frame"] == "none"
     assert drained([{"body": {"id": "b"}}, {"body": {"id": "a"}}, {"body": {"id": "b"}}, {"body": "raw"}]) == \
         {"count": 4, "ids": ["", "a", "b", "b"]}
+    # The scripted model takes its entries in order and repeats the last one.
+    peer = ModelPeer()
+    peer.script = [{"status": 429, "retryAfterS": 2}, {"reply": "hi", "inputTokens": 3, "outputTokens": 4}]
+    try:
+        def post(path):
+            request = urllib.request.Request(peer.url + path, data=b"{}", method="POST")
+            try:
+                with urllib.request.urlopen(request, timeout=5) as response:
+                    return response.status, json.loads(response.read()), response.headers
+            except urllib.error.HTTPError as e:
+                return e.code, json.loads(e.read()), e.headers
+        status, _, headers = post("/api/chat")
+        assert status == 429 and headers["retry-after"] == "2"
+        assert post("/api/chat")[1]["eval_count"] == 4
+        assert post("/v1/chat/completions")[1]["usage"]["prompt_tokens"] == 3
+        assert peer.seen()["calls"] == 3 and len(peer.seen()["gapsMs"]) == 2
+    finally:
+        peer.close()
     # A management API that drops the connection fails the case after three tries; it never ends the run.
     real_urlopen, real_sleep, tries = urllib.request.urlopen, time.sleep, []
 
@@ -333,6 +351,97 @@ def normalise(raw):
 
 
 # --------------------------------------------------------------------------
+# the scripted model, the peer the AI cases call (spec/14-ai.md)
+
+
+class ModelPeer:
+    """A model server on loopback that answers from a script, never a real model.
+
+    It speaks Ollama's ``POST /api/chat`` and the OpenAI-compatible
+    ``POST /v1/chat/completions``. Each call takes the next script entry; the
+    last one repeats. An entry is one of:
+
+    - ``{"reply": text, "inputTokens": n, "outputTokens": n}``
+    - ``{"refusal": text}`` (the OpenAI-compatible shape; Ollama has no refusal)
+    - ``{"status": 429, "retryAfterS": s}`` or any other HTTP error status
+    - ``{"hangMs": n}`` -- answer nothing for that long, then close
+
+    What a case sees (``expect: model``) is ``{"calls": n, "gapsMs": [...]}``:
+    how many calls arrived and the time between each one and the next.
+    """
+
+    def __init__(self):
+        import http.server
+
+        peer = self
+        self.script = [{"reply": "ok", "inputTokens": 1, "outputTokens": 1}]
+        self.calls = []
+        self.lock = threading.Lock()
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def log_message(self, *_args):
+                pass
+
+            def do_POST(self):  # noqa: N802 -- the stdlib's name
+                length = int(self.headers.get("Content-Length") or 0)
+                self.rfile.read(length)
+                with peer.lock:
+                    peer.calls.append(time.monotonic())
+                    entry = peer.script[min(len(peer.calls), len(peer.script)) - 1]
+                openai = self.path.startswith("/v1/")
+                if "hangMs" in entry:
+                    time.sleep(entry["hangMs"] / 1000)
+                    self.close_connection = True
+                    return
+                if "status" in entry:
+                    body = {"error": {"message": entry.get("error", "scripted")}} if openai \
+                        else {"error": entry.get("error", "scripted")}
+                    headers = {"retry-after": str(entry["retryAfterS"])} if "retryAfterS" in entry else {}
+                    return self.send(entry["status"], body, headers)
+                usage = (entry.get("inputTokens", 0), entry.get("outputTokens", 0))
+                if openai:
+                    refused = "refusal" in entry
+                    message = {"role": "assistant", "content": None if refused else entry.get("reply", ""),
+                               "refusal": entry.get("refusal")}
+                    body = {"object": "chat.completion", "model": "scripted",
+                            "choices": [{"message": message, "finish_reason": "stop"}],
+                            "usage": {"prompt_tokens": usage[0], "completion_tokens": usage[1],
+                                      "total_tokens": sum(usage)}}
+                else:
+                    body = {"model": "scripted", "done": True, "done_reason": "stop",
+                            "message": {"role": "assistant", "content": entry.get("reply", "")},
+                            "prompt_eval_count": usage[0], "eval_count": usage[1]}
+                self.send(200, body, {})
+
+            def send(self, status, body, headers):
+                data = json.dumps(body).encode()
+                try:
+                    self.send_response(status)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Content-Length", str(len(data)))
+                    for name, value in headers.items():
+                        self.send_header(name, value)
+                    self.end_headers()
+                    self.wfile.write(data)
+                except OSError:
+                    pass  # the client gave up first (a timeout case)
+
+        self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self.server.daemon_threads = True
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        self.url = f"http://127.0.0.1:{self.server.server_address[1]}"
+
+    def seen(self):
+        with self.lock:
+            calls = list(self.calls)
+        return {"calls": len(calls), "gapsMs": [int((b - a) * 1000) for a, b in zip(calls, calls[1:])]}
+
+    def close(self):
+        self.server.shutdown()
+        self.server.server_close()
+
+
+# --------------------------------------------------------------------------
 # the driver, over JSON lines on its stdin and stdout
 
 
@@ -392,10 +501,11 @@ class Driver:
 
 
 class Run:
-    def __init__(self, case, broker, driver, verbose):
+    def __init__(self, case, broker, driver, verbose, model=None):
         self.case = case
         self.broker = broker
         self.driver = driver
+        self.model = model
         self.verbose = verbose
         self.outcomes = {}
         self.policies = []
@@ -546,6 +656,12 @@ class Run:
             done = subprocess.run(f"{command} {step['args']}", shell=True, capture_output=True, text=True, timeout=60)
             if done.returncode:
                 raise CaseFailed(f"rabbitmqctl {step['args']}: {done.stderr.strip() or done.stdout.strip()}")
+        elif op == "model":
+            # The scripted model at ${model} (spec/14-ai.md): what each call gets, in order.
+            if self.model is None:
+                raise CaseFailed("a model step needs ${model} somewhere in the case")
+            with self.model.lock:
+                self.model.script = step["script"]
         elif op == "respond":
             thread = threading.Thread(target=self.respond, args=(step,), daemon=True)
             thread.start()
@@ -663,6 +779,12 @@ class Run:
                     if info.get("messages", 0):
                         return f"{name} holds {info['messages']} message(s)"
             return None
+        if kind == "model":
+            if self.model is None:
+                return "no scripted model in this case"
+            seen = self.model.seen()
+            self.log(f"  model: {json.dumps(seen)}")
+            return match(seen, step["match"], where="model")
         if kind == "step":
             outcome = self.outcomes.get(step["step"])
             if outcome is None:
@@ -780,6 +902,9 @@ def main():
             # ${tmp}: a directory of the case's own on this machine, which the driver shares
             # (a filesystem claim-check store); removed after the case.
             names["tmp"] = tempfile.mkdtemp(prefix="acemq-tck-") if "${tmp}" in json.dumps(case) else ""
+            # ${model}: the base URL of a scripted model server of the case's own (spec/14-ai.md).
+            model = ModelPeer() if "${model}" in json.dumps(case) else None
+            names["model"] = model.url if model else ""
             case = substitute(case, names)
             needed = {s["driver"] for s in case["steps"] if "driver" in s}
             needed |= {s["call"]["op"] for s in case["steps"] if s.get("expect") == "driver"}
@@ -789,10 +914,12 @@ def main():
                 status, detail = "FAIL", f"driver does not support {missing}"
             else:
                 try:
-                    Run(case, broker, driver, args.verbose).execute()
+                    Run(case, broker, driver, args.verbose, model).execute()
                     status, detail = "PASS", ""
                 except CaseFailed as e:
                     status, detail = "FAIL", str(e)
+            if model:
+                model.close()
             if names["tmp"]:
                 shutil.rmtree(names["tmp"], ignore_errors=True)
             seconds = time.monotonic() - started

@@ -1,0 +1,16 @@
+{
+  "id": "AI-002",
+  "title": "a 429 pauses the consumer for at least retry-after and the message takes a retry rung, nothing lost",
+  "requirements": ["AMQP-AI-002"],
+  "comment": ["The first call is refused with retry-after 3s; the second answers. The retry rung is 200ms, so a second call sooner than 3s after the first means the consumer was not paused. The consumer count on the broker is a statistic seconds old, too slow to see a 3s pause, so the gap between the calls is what shows it."],
+  "steps": [
+    {"broker": "model", "script": [{"status": 429, "retryAfterS": 3}, {"reply": "fine", "inputTokens": 3, "outputTokens": 2}]},
+    {"driver": "aiConsume", "queue": "${ns}.q", "handle": "h", "model": "${model}", "api": "ollama", "prefetch": 1, "retry": {"maxAttempts": 3, "delayMs": 200}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.q", "body": {"id": "a2"}, "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "a2", "headers": {"x-acemq-id": "a2", "x-acemq-attempt": 1, "x-acemq-correlation": "corr-a2"}}},
+    {"expect": "model", "match": {"calls": 1}, "withinMs": 10000},
+    {"expect": "driver", "call": {"op": "handled", "handle": "h"}, "match": {"counts": {"a2": 1}}, "withinMs": 20000},
+    {"expect": "model", "match": {"calls": 2, "gapsMs": [{"$gte": 2900}]}},
+    {"expect": "consumers", "queue": "${ns}.q", "count": 1, "withinMs": 15000},
+    {"expect": "noMessagesIn", "pattern": "^${nsre}\\.q\\.(dlq|parked)$"}
+  ]
+}
