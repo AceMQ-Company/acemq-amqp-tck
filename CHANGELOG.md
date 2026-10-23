@@ -9,6 +9,22 @@
   `x-acemq-causation` set to the handled message's id and the correlation
   unchanged. Python, Ruby and Go pass; Java and .NET carry the handled id on.
 - Spec: AMQP-SLIP-007 (a hop is a new message, caused by the one handled).
+- Spec `14-ai.md`: AMQP-AI-001 to AMQP-AI-007, a model call behind a queue
+  (token counts, rate limit pauses and retries, timeout retries, bad request
+  and refusal dead-lettered after one call, no second call after a
+  redelivery, token budget pauses and resumes).
+- Pending cases AI-001 to AI-007 (`cases/pending/`, run with
+  `--pending --only ^AI-`). Only `acemq-java-amqp-ai` implements this area;
+  it passes all seven. A messaging library without an AI adapter does not run
+  them.
+- Runner: a scripted model peer. A case that names `${model}` gets a model
+  server of its own on loopback, speaking Ollama's `/api/chat` and the
+  OpenAI-compatible `/v1/chat/completions`. `broker: model` sets what each
+  call gets; `expect: model` matches `{"calls", "gapsMs"}`.
+- Driver op `aiConsume`, and a `value` on each `metrics` sample (a counter's
+  total, a timer's count).
+- Action input `pending` (default `false`): `true` adds `--pending`, so an
+  adapter library can run its own area's pending cases with `only`.
 
 ## [0.3.4] - 2026-10-22
 

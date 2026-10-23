@@ -1,0 +1,18 @@
+{
+  "id": "AI-006",
+  "title": "the connection is cut after the model answered and before the ack: the redelivery does not call the model again",
+  "requirements": ["AMQP-AI-006"],
+  "comment": ["The handler sleeps 3s after the answer (behaviour.sleepMs), so the cut lands between the answer and the acknowledgement. The idempotent consumer claims by x-acemq-id."],
+  "steps": [
+    {"broker": "model", "script": [{"reply": "fine", "inputTokens": 3, "outputTokens": 2}]},
+    {"driver": "aiConsume", "queue": "${ns}.q", "handle": "h", "model": "${model}", "api": "ollama", "prefetch": 1, "retry": {"maxAttempts": 3, "delayMs": 200}, "idempotent": true, "behaviour": {"sleepMs": 3000}},
+    {"comment": "the broker lists the driver's connection by now, so closeConnections finds it", "expect": "consumers", "queue": "${ns}.q", "count": 1, "withinMs": 15000},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.q", "body": {"id": "a6"}, "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "a6", "headers": {"x-acemq-id": "a6", "x-acemq-attempt": 1, "x-acemq-correlation": "corr-a6"}}},
+    {"expect": "model", "match": {"calls": 1}, "withinMs": 10000},
+    {"broker": "closeConnections"},
+    {"comment": "reconnect, redelivery and any second call", "sleep": 10000},
+    {"expect": "depth", "queue": "${ns}.q", "count": 0, "withinMs": 15000},
+    {"expect": "model", "match": {"calls": 1}},
+    {"expect": "noMessagesIn", "pattern": "^${nsre}\\.q\\.(dlq|parked)$"}
+  ]
+}

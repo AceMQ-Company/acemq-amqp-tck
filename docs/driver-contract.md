@@ -161,6 +161,24 @@ through `acemq.WithCodec`; `patterns.Record[T](conn, exchange, routingKey, paylo
 Before the group starts, the driver declares the queue as `consume` does with
 no `retry`.
 
+### AI adapters
+
+Only a library with an AI adapter implements this op; the cases that use it
+(spec/14-ai.md) run with `--pending --only ^AI-`. Its driver needs `hello`,
+`begin`, `end`, `handled` and `metrics` besides.
+
+| op | arguments | result | what it does |
+|---|---|---|---|
+| `aiConsume` | `queue`, `handle`, `model`, `api`?, `prefetch`?, `retry`?, `idempotent`?, `timeoutMs`?, `maxOutputTokens`?, `budget: {tokens, windowMs}`?, `behaviour: {sleepMs}`? | `{}` | declare `queue` as `consume` does, then consume it through the adapter's AI handler over the model at `model` (a base URL the runner gives as `${model}`): `api` `ollama` (the default, `POST {model}/api/chat`) or `openai` (`POST {model}/v1/chat/completions`), with `timeoutMs` as the call's timeout when given. The handler sends the body as the user prompt with `maxOutputTokens` (default 64) and, once the model answered, counts `body.id` under `handle` and sleeps `sleepMs` -- after the answer and before the acknowledgement. `retry` and `idempotent` as for `consume`; `budget` is the adapter's token budget, that many tokens per window, shared by nothing else. The adapter's metrics go to the `metrics` recorder |
+
+Java (`acemq-java-amqp-ai`): `ModelClients.ollama(...)` / `ModelClients.openAiCompatible(...)`
+with `baseUrl`, `AiHandler.forModel(client, T).request(...).onResponse(...).telemetry(MicrometerAiTelemetry.of(recorder))`,
+`TokenBudget.per(window, tokens)` and `AceMqAi.consume(mq, queue, T, options, budget, handler)`.
+
+A `metrics` sample may carry `value`: a counter's total, a timer's count of
+recordings. AMQP-AI-001 matches the token counters on it; a driver for the
+other areas may leave it out.
+
 ### Shutdown
 
 `end` is how an application shuts down: the driver closes what the case opened

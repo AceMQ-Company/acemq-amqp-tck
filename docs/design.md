@@ -106,9 +106,11 @@ One JSON file per case in `cases/`:
 - A step is exactly one of `driver` (an op sent to the driver; `as` records
   its outcome for a later `expect: step`), `broker` (done by the runner:
   `declareQueue`, `declareExchange`, `bind`, `policy`, `clearPolicy`,
-  `publish`, `respond`, `storeClaim`), `expect` (`message`, `depth`,
+  `publish`, `respond`, `storeClaim`, `model`), `expect` (`message`, `depth`,
   `consumers`, `queue`, `queueAbsent`, `noNewQueues`, `noMessagesIn`, `step`,
-  `driver`, `drain`, `claimCheck`) or `sleep`. A `publish` with `claimKey`
+  `driver`, `drain`, `claimCheck`, `model`) or `sleep`. `${model}` in a case
+  starts a scripted model of its own (spec/14-ai.md): `broker: model` gives
+  the replies in order, `expect: model` matches `{"calls", "gapsMs"}`. A `publish` with `claimKey`
   sends the claim-check framing and that key instead of a JSON body;
   `storeClaim` writes a payload into a filesystem claim-check store the way
   another library would; `claimCheck` takes one message and matches

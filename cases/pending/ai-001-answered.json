@@ -1,0 +1,14 @@
+{
+  "id": "AI-001",
+  "title": "an answered call is one call, timed as answered, with the model's token counts",
+  "requirements": ["AMQP-AI-001"],
+  "steps": [
+    {"broker": "model", "script": [{"reply": "fine", "inputTokens": 12, "outputTokens": 5}]},
+    {"driver": "aiConsume", "queue": "${ns}.q", "handle": "h", "model": "${model}", "api": "ollama", "prefetch": 1, "retry": {"maxAttempts": 3, "delayMs": 200}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.q", "body": {"id": "a1"}, "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "a1", "headers": {"x-acemq-id": "a1", "x-acemq-attempt": 1, "x-acemq-correlation": "corr-a1"}}},
+    {"expect": "driver", "call": {"op": "handled", "handle": "h"}, "match": {"counts": {"a1": 1}}, "withinMs": 15000},
+    {"expect": "model", "match": {"calls": 1}},
+    {"expect": "driver", "call": {"op": "metrics"}, "match": {"samples": {"$contains": [{"name": "acemq.ai.request.duration", "tags": {"queue": "${ns}.q", "outcome": "answered"}}, {"name": "acemq.ai.tokens", "tags": {"queue": "${ns}.q", "kind": "input"}, "value": 12}, {"name": "acemq.ai.tokens", "tags": {"queue": "${ns}.q", "kind": "output"}, "value": 5}]}}},
+    {"expect": "noMessagesIn", "pattern": "^${nsre}\\.q\\.(dlq|parked)$"}
+  ]
+}

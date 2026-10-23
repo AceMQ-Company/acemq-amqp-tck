@@ -1,0 +1,15 @@
+{
+  "id": "AI-004",
+  "title": "a 400 sends the message to {queue}.dlq after one call, whatever the retry policy",
+  "requirements": ["AMQP-AI-004"],
+  "steps": [
+    {"broker": "model", "script": [{"status": 400, "error": "invalid request: unknown field"}]},
+    {"driver": "aiConsume", "queue": "${ns}.q", "handle": "h", "model": "${model}", "api": "ollama", "prefetch": 1, "retry": {"maxAttempts": 3, "delayMs": 200}},
+    {"broker": "publish", "exchange": "", "routingKey": "${ns}.q", "body": {"id": "a4"}, "properties": {"content_type": "application/json", "delivery_mode": 2, "message_id": "a4", "headers": {"x-acemq-id": "a4", "x-acemq-attempt": 1, "x-acemq-correlation": "corr-a4"}}},
+    {"expect": "message", "queue": "${ns}.q.dlq", "withinMs": 15000, "match": {"body": {"id": "a4"}, "headers": {"x-acemq-id": "a4", "x-acemq-error": {"$type": "string", "$regex": "."}}}},
+    {"comment": "long enough for a 200ms retry rung to show", "sleep": 2000},
+    {"expect": "model", "match": {"calls": 1}},
+    {"expect": "driver", "call": {"op": "handled", "handle": "h"}, "match": {"counts": {"a4": {"$absent": true}}}},
+    {"expect": "depth", "queue": "${ns}.q", "count": 0}
+  ]
+}

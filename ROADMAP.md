@@ -14,6 +14,14 @@ with `x-acemq-causation` the handled message's id and the correlation
 unchanged, in the route and itinerary forms). Python, Ruby and Go already do
 this; the Java and .NET hops carry the handled message's id onwards.
 
+AI-001 to AI-007 (`spec/14-ai.md`, a model call behind a queue) are a
+different kind of pending: they are not a divergence. They apply only to a
+library with an AI adapter, and today that is `acemq-java-amqp-ai`, which
+passes all seven and runs them in its CI with `pending: "true"` and
+`only: ^AI-`. They stay in `cases/pending/` until a second adapter exists
+(Python first, by the scope's port order), because the default run is the
+one all five messaging libraries pass.
+
 SLIP-006 and SLIP-007 (AMQP-SLIP-006, a hop keeps the
 run's `x-acemq-first-seen`, in the route and itinerary forms) moved into
 `cases/` in v0.3.4, once Java 0.7.20, .NET 0.7.18, Python 0.7.17, Ruby 0.7.19
